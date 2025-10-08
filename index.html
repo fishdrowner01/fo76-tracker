@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#05070b" />
+<meta name="theme-color" content="#020503" />
 <link rel="manifest" href="./manifest.webmanifest" />
 <title>FO76 Tracker</title>
 <link rel="stylesheet" href="./style.css" />
@@ -18,12 +18,11 @@
   <div class="box">
     <h4>Importing…</h4>
     <p id="ocrStatus">Starting OCR engine…</p>
-    <p style="font-size:12px">Tip: PNG/JPG works best. Crop close to the text.</p>
+    <p style="font-size:12px">PNG/JPG works best. Crop close to the text box for cleaner results.</p>
   </div>
 </div>
 
 <script>
-// ---- helpers ----
 const ET_TZ="America/New_York", KEY="fo76-tracker-v1";
 const nowET=()=>new Date(new Date().toLocaleString("en-US",{timeZone:ET_TZ}));
 const nextDaily=()=>{const e=nowET(),t=new Date(e);t.setHours(12,0,0,0);if(t<=e)t.setDate(t.getDate()+1);return t};
@@ -37,13 +36,35 @@ function showOverlay(msg){ const ov=document.getElementById('ocrOverlay'); const
 function updateOverlay(msg){ const st=document.getElementById('ocrStatus'); st.textContent=msg; }
 function hideOverlay(){ document.getElementById('ocrOverlay').classList.remove('show'); }
 
-// ---- React bits ----
+async function runOCR(file){
+  showOverlay("Loading OCR engine…");
+  const opts = {
+    logger: m => { if(m.status) updateOverlay(`${m.status} ${Math.round((m.progress||0)*100)}%`) },
+    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0/dist/tesseract-core.wasm.js',
+    langPath: 'https://tessdata.projectnaptha.com/5'
+  };
+  const to = setTimeout(()=>updateOverlay("Still loading… big images can take a minute on mobile."), 8000);
+  try{
+    const worker = await Tesseract.createWorker(opts);
+    clearTimeout(to);
+    await worker.loadLanguage('eng'); await worker.initialize('eng');
+    updateOverlay("Recognizing…");
+    const ret = await worker.recognize(file);
+    await worker.terminate();
+    return ret.data.text || "";
+  } catch(e){
+    updateOverlay("OCR error: " + e.message);
+    return "";
+  } finally {
+    setTimeout(hideOverlay, 1200);
+  }
+}
+
 function GoldMini(){
   const [daily,setDaily]=React.useState(()=>!!load()?.gold?.dailyDone);
   const [weekly,setWeekly]=React.useState(()=>!!load()?.gold?.weeklyDone);
   const d=React.useMemo(()=>nextDaily(),[]), w=React.useMemo(()=>nextWeekly(),[]);
-  const [tick,setTick]=React.useState(0);
-  React.useEffect(()=>{const i=setInterval(()=>setTick(t=>t+1),1000);return()=>clearInterval(i)},[]);
   React.useEffect(()=>{const s=load()||{};s.gold={dailyDone:daily,weeklyDone:weekly};save(s)},[daily,weekly]);
   React.useEffect(()=>{const i=setInterval(()=>{const n=nowET();if(n>d&&daily)setDaily(false);if(n>w&&weekly)setWeekly(false)},15000);return()=>clearInterval(i)},[daily,weekly,d,w]);
   const now=nowET(); const showD=d-now<=4*60*60*1000, showW=w-now<=24*60*60*1000;
@@ -52,7 +73,7 @@ function GoldMini(){
     React.createElement('div',null, React.createElement('h3',null,'Gold'), badge?React.createElement('div',{className:'badge'},badge):null),
     React.createElement('div',{className:'checks'},
       React.createElement('label',null, React.createElement('input',{type:'checkbox',checked:daily,onChange:e=>setDaily(e.target.checked)}),' Daily'),
-      React.createElement('label',null, React.createElement('input',{type:'checkbox',checked:weekly,onChange:e=>setWeekly(e.target.checked)}),' Weekly'),
+      React.createElement('label',null, React.createElement('input',{type:'checkbox',checked:weekly,onChange:e=>setWeekly(e.target.checked)}),' Weekly')
     ));
 }
 
@@ -74,26 +95,18 @@ function DailyPanel({show=true}){
 
   async function importImage(ev){
     const f=ev.target.files?.[0]; if(!f) return;
-    showOverlay("Loading OCR engine…");
-    try{
-      const worker=await window.Tesseract.createWorker({logger:m=>{ if(m.status) updateOverlay(`${m.status} ${Math.round((m.progress||0)*100)}%`) }});
-      await worker.loadLanguage('eng'); await worker.initialize('eng');
-      updateOverlay("Reading image…");
-      const ret=await worker.recognize(f);
-      await worker.terminate();
-      const lines = ret.data.text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-      const adds = lines.map(t=>({id:newid(),text:t,done:false}));
-      if(adds.length) setItems(L=>[...L,...adds]);
-      updateOverlay(adds.length?`Imported ${adds.length} lines 👍`:`No text found. Try cropping to the text.`);
-    } catch(e){ updateOverlay("Import failed: "+e.message); }
-    finally { ev.target.value=""; setTimeout(hideOverlay, 1200); }
+    const text = await runOCR(f);
+    const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    const adds = lines.map(t=>({id:newid(),text:t,done:false}));
+    if(adds.length) setItems(L=>[...L,...adds]);
+    ev.target.value="";
   }
 
   const shown = hide ? items.filter(x=>!x.done) : items;
 
   return React.createElement('div',{className:'card'},
     React.createElement('div',{className:'head'},
-      React.createElement('h3',null, React.createElement('img',{src:'./arts/bolt.svg',alt:'',width:18,height:18}), " Daily Challenges"),
+      React.createElement('h3',null, React.createElement('img',{src:'./arts/thumbs.svg',alt:'',width:18,height:18}), " FO76 Daily"),
       React.createElement('label',{className:'switch'}, React.createElement('input',{type:'checkbox',checked:hide,onChange:e=>setHide(e.target.checked)})," Hide completed")
     ),
     React.createElement('div',{className:'body'},
@@ -131,33 +144,24 @@ function WeeklyPanel({show=true}){
 
   async function importImage(ev){
     const f=ev.target.files?.[0]; if(!f) return;
-    showOverlay("Loading OCR engine…");
-    try{
-      const worker=await window.Tesseract.createWorker({logger:m=>{ if(m.status) updateOverlay(`${m.status} ${Math.round((m.progress||0)*100)}%`) }});
-      await worker.loadLanguage('eng'); await worker.initialize('eng');
-      updateOverlay("Reading image…");
-      const ret=await worker.recognize(f);
-      await worker.terminate();
-      const lines = ret.data.text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-      // Keep only likely weekly lines (very simple heuristic)
-      const filtered = lines.filter(s => /complete|event|week/i.test(s) || /\d+/.test(s));
-      const adds = filtered.map(t=>({id:newid(),text:t,done:false}));
-      if(adds.length) setItems(L=>[...L,...adds]);
-      updateOverlay(adds.length?`Imported ${adds.length} weekly lines 👍`:`No weekly-looking text found. Try cropping to the weekly box.`);
-    } catch(e){ updateOverlay("Import failed: "+e.message); }
-    finally { ev.target.value=""; setTimeout(hideOverlay, 1200); }
+    const text = await runOCR(f);
+    const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    const filtered = lines.filter(s => /complete|event|weekly|challenge/i.test(s) || /\d+/.test(s));
+    const adds = filtered.map(t=>({id:newid(),text:t,done:false}));
+    if(adds.length) setItems(L=>[...L,...adds]);
+    ev.target.value="";
   }
 
   const shown = hide ? items.filter(x=>!x.done) : items;
 
   return React.createElement('div',{className:'card'},
     React.createElement('div',{className:'head'},
-      React.createElement('h3',null, React.createElement('img',{src:'./arts/bolt.svg',alt:'',width:18,height:18}), " Weekly"),
+      React.createElement('h3',null, React.createElement('img',{src:'./arts/thumbs.svg',alt:'',width:18,height:18}), " FO76 Weekly"),
       React.createElement('div',null,
         React.createElement('label',{className:'btn',style:{marginRight:8,display:'inline-flex',alignItems:'center',gap:6,cursor:'pointer'}},
-          React.createElement('input',{type:'file',accept:'image/*',onChange:importImage,style:{display:'none'}}),'Import image'),
-        React.createElement('label',{className:'switch'},
-          React.createElement('input',{type:'checkbox',checked:hide,onChange:e=>setHide(e.target.checked)})," Hide completed")
+          React.createElement('input',{type:'file',accept:'image/*',onChange:importImage,style:{display:'none'}}),
+          'Import image'),
+        React.createElement('label',{className:'switch'}, React.createElement('input',{type:'checkbox',checked:hide,onChange:e=>setHide(e.target.checked)})," Hide completed")
       )
     ),
     React.createElement('div',{className:'body'},
@@ -178,8 +182,7 @@ function App(){
   return React.createElement('div',{className:'container'},
     React.createElement('div',{className:'header'},
       React.createElement('div',null,
-        React.createElement('h1',{className:'title'}, React.createElement('img',{src:'./arts/bolt.svg',alt:''}), " FO76 Tracker — v1.6.2"),
-        React.createElement('p',{className:'subtitle'},'Mobile • orientation-aware • OCR • focus buttons')
+        React.createElement('h1',{className:'title'}, React.createElement('img',{src:'./arts/thumbs.svg',alt:''}), " FO76 Tracker")
       ),
       React.createElement(GoldMini,null)
     ),
@@ -196,7 +199,6 @@ function App(){
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(React.StrictMode,null,React.createElement(App)));
 
-// PWA
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js')) }
 </script>
 </body>

@@ -1,7 +1,7 @@
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('fo76-ghpages-v2').then((cache) => cache.addAll([
-    './','./index.html','./style.css','./arts/bolt.svg',
+  e.waitUntil(caches.open('fo76-green-v1').then((cache) => cache.addAll([
+    './','./index.html','./style.css','./arts/thumbs.svg',
     './icons/icon-192.png','./icons/icon-512.png'
   ])));
   self.skipWaiting();
