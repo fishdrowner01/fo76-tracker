@@ -6,92 +6,85 @@
 <meta name="theme-color" content="#031207" />
 <link rel="manifest" href="./manifest.webmanifest" />
 <title>FO76 Tracker</title>
-<link rel="stylesheet" href="./style-180.css" />
+<link rel="stylesheet" href="./style-186.css" />
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 <div id="root"></div>
 
-<!-- OCR overlay -->
 <div class="overlay" id="ocrOverlay">
   <div class="box">
     <h4>Importing…</h4>
     <p id="ocrStatus">Starting OCR engine…</p>
-    <p style="font-size:12px">Tip: PNG/JPG works best. Crop close to the text.</p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+      <button class="btn" id="ocrRetry" style="display:none">Try again</button>
+      <button class="btn" id="ocrCancel">Cancel</button>
+    </div>
+    <p style="font-size:12px;margin-top:8px">Offline OCR mode · assets loaded from <code>./ocr/</code>.</p>
   </div>
 </div>
 
-<!-- Theme wheel overlay -->
 <div class="overlay" id="themeOverlay">
   <div class="box" style="text-align:center">
     <h4>Theme</h4>
-    <div class="theme-wheel">
-      <button class="theme-dot green"  data-theme="green"  aria-label="Green"></button>
-      <button class="theme-dot blue"   data-theme="blue"   aria-label="Blue"></button>
-      <button class="theme-dot red"    data-theme="red"    aria-label="Red"></button>
-      <button class="theme-dot violet" data-theme="violet" aria-label="Violet"></button>
-      <button class="theme-dot mono"   data-theme="mono"   aria-label="Mono"></button>
+    <div class="theme-chips">
+      <button class="theme-chip green"  data-theme="green">Green</button>
+      <button class="theme-chip blue"   data-theme="blue">Blue</button>
+      <button class="theme-chip red"    data-theme="red">Red</button>
+      <button class="theme-chip violet" data-theme="violet">Violet</button>
+      <button class="theme-chip mono"   data-theme="mono">Mono</button>
     </div>
-    <div class="theme-label" id="themeLabel">Tap a color</div>
-    <div style="margin-top:10px;display:flex;gap:8px;justify-content:center">
+    <div class="theme-footer">
       <button class="btn" id="themeClose">Close</button>
     </div>
   </div>
 </div>
 
 <script>
-// ---------- THEME SYSTEM ----------
 const THEMES = {
   green: { '--bg':'#031207','--bg1':'#05160b','--bg2':'#072313','--panel':'rgba(3,18,9,.9)','--panel2':'#04150a','--border':'#0b3a1d','--text':'#c7ffb0','--muted':'#7acb79','--acc':'#4cff5a','--acc2':'#6dff84','--glow':'rgba(76,255,90,.25)'},
   blue:  { '--bg':'#07121f','--bg1':'#0c1a2e','--bg2':'#102541','--panel':'rgba(8,20,35,.9)','--panel2':'#0a1729','--border':'#113154','--text':'#c7e9ff','--muted':'#7ab1cb','--acc':'#4cbcff','--acc2':'#78d4ff','--glow':'rgba(76,188,255,.25)'},
   red:   { '--bg':'#1f0a0a','--bg1':'#2a0f0f','--bg2':'#3b1414','--panel':'rgba(35,8,8,.9)','--panel2':'#1f0d0d','--border':'#4a1b1b','--text':'#ffc7c7','--muted':'#cb7a7a','--acc':'#ff4c4c','--acc2':'#ff7a7a','--glow':'rgba(255,76,76,.25)'},
-  violet:{ '--bg':'#130a1f','--bg1':'#1b0f2a','--bg2':'#27143b','--panel':'rgba(26,8,35,.9)','--panel2':'#1a0d29','--border':'#2d1b4a','--text':'#e1c7ff','--muted':'#b07acb','--acc':'#b84cff','--acc2':'#d178ff','--glow':'rgba(184,76,255,.25)'},
+  violet:{ '--bg':'#130a1f','--bg1':'#1b0f2a','--bg2':'#27143b','--panel':'rgba(26,8,35,.9)','--panel2':'#1a1d29','--border':'#2d1b4a','--text':'#e1c7ff','--muted':'#b07acb','--acc':'#b84cff','--acc2':'#d178ff','--glow':'rgba(184,76,255,.25)'},
   mono:  { '--bg':'#0d0d0d','--bg1':'#121212','--bg2':'#1a1a1a','--panel':'rgba(20,20,20,.9)','--panel2':'#141414','--border':'#2a2a2a','--text':'#dfdfdf','--muted':'#aaa','--acc':'#e0e0e0','--acc2':'#fff','--glow':'rgba(255,255,255,.18)'}
 };
-function applyTheme(name){
-  const t = THEMES[name] || THEMES.green;
-  const r = document.documentElement;
-  Object.entries(t).forEach(([k,v])=>r.style.setProperty(k,v));
-  localStorage.setItem('fo76-theme', name);
-  document.getElementById('themeLabel').textContent = name.charAt(0).toUpperCase()+name.slice(1);
-}
+function applyTheme(name){ const t = THEMES[name] || THEMES.green; const r=document.documentElement; Object.entries(t).forEach(([k,v])=>r.style.setProperty(k,v)); localStorage.setItem('fo76-theme', name); }
 function openTheme(){ document.getElementById('themeOverlay').classList.add('show') }
 function closeTheme(){ document.getElementById('themeOverlay').classList.remove('show') }
 window.addEventListener('DOMContentLoaded',()=>{
-  const saved = localStorage.getItem('fo76-theme') || 'green'; applyTheme(saved);
-  document.querySelectorAll('.theme-dot').forEach(b=>b.addEventListener('click',()=>applyTheme(b.dataset.theme)));
+  const saved=localStorage.getItem('fo76-theme')||'green'; applyTheme(saved);
+  document.querySelectorAll('.theme-chip').forEach(b=>b.addEventListener('click',()=>{applyTheme(b.dataset.theme); closeTheme();}));
   document.getElementById('themeClose').addEventListener('click',closeTheme);
 });
 
-// ---------- OCR + helpers (auto-rotate) ----------
+// OFFLINE OCR (local ./ocr/* files)
 const ET_TZ="America/New_York", KEY="fo76-tracker-v1";
 const nowET=()=>new Date(new Date().toLocaleString("en-US",{timeZone:ET_TZ}));
 const nextDaily=()=>{const e=nowET(),t=new Date(e);t.setHours(12,0,0,0);if(t<=e)t.setDate(t.getDate()+1);return t};
 const nextWeekly=()=>{const e=nowET(),t=new Date(e),TUE=2;t.setHours(12,0,0,0);let d=(TUE-t.getDay()+7)%7;if(d===0&&t<=e)d=7;if(d>0)t.setDate(t.getDate()+d);if(t<=e)t.setDate(t.getDate()+7);return t};
-const fmt=(t)=>{const ms=t-nowET();if(ms<=0)return"Resetting…";const s=Math.floor(ms/1e3),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);const parts=[];if(d)parts.push(`${d}d`);if(h||d)parts.push(`${h}h`);if(m||h||d)parts.push(`${m}m`);parts.push(`${s%60}s`);return parts.join(" ")};
 const load=()=>{try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch{return null}};
 const save=(s)=>{try{localStorage.setItem(KEY,JSON.stringify(s))}catch{}};
 const newid=()=>Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);
-function showOverlay(msg){ const ov=document.getElementById('ocrOverlay'); const st=document.getElementById('ocrStatus'); st.textContent=msg||'Working…'; ov.classList.add('show'); }
-function updateOverlay(msg){ const st=document.getElementById('ocrStatus'); st.textContent=msg; }
-function hideOverlay(){ document.getElementById('ocrOverlay').classList.remove('show'); }
 
+const overlay = {
+  show:(msg)=>{const ov=document.getElementById('ocrOverlay'); const st=document.getElementById('ocrStatus'); st.textContent=msg||'Working…'; ov.classList.add('show');},
+  msg:(m)=>document.getElementById('ocrStatus').textContent=m,
+  hide:()=>document.getElementById('ocrOverlay').classList.remove('show')
+};
+
+let _abortOCR=null;
 async function runOCR(file){
-  showOverlay("Loading OCR engine…");
-  const opts = {
-    logger: m => { if (m.status) updateOverlay(`${m.status} ${Math.round((m.progress||0)*100)}%`) },
-    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-    corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0/dist/tesseract-core.wasm.js',
-    langPath:   'https://tessdata.projectnaptha.com/5'
-  };
+  overlay.show("Loading OCR (offline)…");
+  document.getElementById('ocrRetry').style.display='none';
+
+  const MAX = 1600;
   function loadToCanvas(file){
     return new Promise((resolve,reject)=>{
       const url = URL.createObjectURL(file);
       const img = new Image();
       img.onload = () => {
-        const MAX = 2200; let w=img.width, h=img.height;
+        let w=img.width, h=img.height;
         if (Math.max(w,h) > MAX){ const s = MAX/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
         const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
         const cx = cv.getContext('2d'); cx.drawImage(img,0,0,w,h);
@@ -107,28 +100,37 @@ async function runOCR(file){
     const cx=cv.getContext('2d'); cx.translate(rw/2,rh/2); cx.rotate(rad); cx.drawImage(src,-w/2,-h/2);
     return cv;
   }
-  function canvasToBlob(cv){ return new Promise(res=>cv.toBlob(b=>res(b),'image/png',0.92)); }
+  function canvasToBlob(cv){ return new Promise(res=>cv.toBlob(b=>res(b),'image/png',0.9)); }
 
   try{
-    const worker = await Tesseract.createWorker(opts);
-    await worker.loadLanguage('eng'); await worker.initialize('eng');
+    const W = await Tesseract.createWorker({
+      logger: m => { if (m.status) overlay.msg(`${m.status} ${Math.round((m.progress||0)*100)}%`) },
+      workerPath: './ocr/worker.min.js',
+      corePath:   './ocr/tesseract-core.wasm.js',
+      langPath:   './ocr'
+    });
+    _abortOCR = () => { try{W.terminate()}catch{}; };
+
+    await W.loadLanguage('eng');
+    await W.initialize('eng');
 
     const baseCanvas = await loadToCanvas(file);
-    updateOverlay("Detecting orientation…");
-    const osd = await worker.detect(baseCanvas);
+    overlay.msg("Detecting orientation…");
+    const osd = await W.detect(baseCanvas);
     const angle = Math.round((osd?.data?.orientation?.deg)||0);
     const readyCanvas = (angle%360===0) ? baseCanvas : rotateCanvas(baseCanvas, 360-angle);
     const blob = await canvasToBlob(readyCanvas);
 
-    updateOverlay("Recognizing…");
-    const result = await worker.recognize(blob, { tessedit_pageseg_mode: 6 });
-    await worker.terminate();
+    overlay.msg("Recognizing…");
+    const result = await W.recognize(blob, { tessedit_pageseg_mode: 6 });
+    await W.terminate(); _abortOCR=null;
+    overlay.hide();
     return result.data.text || "";
   } catch(e){
-    updateOverlay("OCR error: " + e.message);
+    console.error("OCR error:", e);
+    overlay.msg("Offline OCR files missing. See /ocr/README.");
+    document.getElementById('ocrRetry').style.display='inline-block';
     return "";
-  } finally {
-    setTimeout(hideOverlay, 1200);
   }
 }
 
@@ -152,10 +154,10 @@ function parseChallenges(raw, mode){
   return uniq.slice(0,50);
 }
 function toItems(lines){
-  return lines.map(txt=>({ id:newid(), text: txt.replace(/^\s*(✔|✓|✅|!|\||i|★)\s*/i,'').replace(/\s*(✔|✓|✅|!|\||i|★)\s*$/i,'').trim(), done: looksCompleted(txt) }));
+  return lines.map(txt=>({ id: newid(), text: txt.replace(/^\s*(✔|✓|✅|!|\||i|★)\s*/i,'').replace(/\s*(✔|✓|✅|!|\||i|★)\s*$/i,'').trim(), done: looksCompleted(txt) }));
 }
 
-// ---------- React components ----------
+// UI
 function GoldMini(){
   const [daily,setDaily]=React.useState(()=>!!load()?.gold?.dailyDone);
   const [weekly,setWeekly]=React.useState(()=>!!load()?.gold?.weeklyDone);
@@ -163,7 +165,7 @@ function GoldMini(){
   React.useEffect(()=>{const s=load()||{};s.gold={dailyDone:daily,weeklyDone:weekly};save(s)},[daily,weekly]);
   React.useEffect(()=>{const i=setInterval(()=>{const n=nowET();if(n>d&&daily)setDaily(false);if(n>w&&weekly)setWeekly(false)},15000);return()=>clearInterval(i)},[daily,weekly,d,w]);
   const now=nowET(); const showD=d-now<=4*60*60*1000, showW=w-now<=24*60*60*1000;
-  let badge=""; if(showD&&showW) badge=`D ${fmt(d)} · W ${fmt(w)}`; else if(showD) badge=`Daily ${fmt(d)}`; else if(showW) badge=`Weekly ${fmt(w)}`;
+  let badge=""; if(showD&&showW) badge=`D ${(d-now>0)?'soon':''} · W ${(w-now>0)?'soon':''}`; else if(showD) badge=`Daily resets soon`; else if(showW) badge=`Weekly resets soon`;
   return React.createElement('div',{className:'gold'},
     React.createElement('div',null, React.createElement('h3',null,'Gold'), badge?React.createElement('div',{className:'badge'},badge):null),
     React.createElement('div',{className:'checks'},
@@ -198,7 +200,7 @@ function DailyPanel({show=true}){
   const shown = hide ? items.filter(x=>!x.done) : items;
   return React.createElement('div',{className:'card'},
     React.createElement('div',{className:'head'},
-      React.createElement('h3',null, React.createElement('img',{src:'./arts/bomb.svg',alt:'',width:18,height:18}), " FO76 Daily"),
+      React.createElement('h3',null, "Daily Challenges"),
       React.createElement('label',{className:'switch'}, React.createElement('input',{type:'checkbox',checked:hide,onChange:e=>setHide(e.target.checked)})," Hide completed")
     ),
     React.createElement('div',{className:'body'},
@@ -208,8 +210,7 @@ function DailyPanel({show=true}){
         React.createElement('button',{className:'icon',onClick:clearDone,title:'Remove completed'},'✖'),
         React.createElement('button',{className:'icon',onClick:resetAll,title:'Uncheck all'},'↺'),
         React.createElement('label',{className:'btn',style:{display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer'}},
-          React.createElement('input',{type:'file',accept:'image/*',onChange:importImage,style:{display:'none'}}),
-          'Import image')
+          React.createElement('input',{type:'file',accept:'image/*',onChange:importImage,style:{display:'none'}}),'Import image')
       ),
       React.createElement('div',{className:'list'},
         shown.map(it=>React.createElement('div',{key:it.id,className:'item '+(it.done?'done':''),onClick:()=>toggle(it.id)},
@@ -246,11 +247,10 @@ function WeeklyPanel({show=true}){
   const shown = hide ? items.filter(x=>!x.done) : items;
   return React.createElement('div',{className:'card'},
     React.createElement('div',{className:'head'},
-      React.createElement('h3',null, React.createElement('img',{src:'./arts/bomb.svg',alt:'',width:18,height:18}), " FO76 Weekly"),
+      React.createElement('h3',null, "Weekly Challenges"),
       React.createElement('div',null,
         React.createElement('label',{className:'btn',style:{marginRight:8,display:'inline-flex',alignItems:'center',gap:6,cursor:'pointer'}},
-          React.createElement('input',{type:'file',accept:'image/*',onChange:importImage,style:{display:'none'}}),
-          'Import image'),
+          React.createElement('input',{type:'file',accept:'image/*',onChange:importImage,style:{display:'none'}}),'Import image'),
         React.createElement('label',{className:'switch'}, React.createElement('input',{type:'checkbox',checked:hide,onChange:e=>setHide(e.target.checked)})," Hide completed")
       )
     ),
@@ -270,10 +270,21 @@ function WeeklyPanel({show=true}){
   );
 }
 
-function HeaderActions(){
-  return React.createElement('div',{className:'header-actions'},
-    React.createElement('button',{className:'btn',onClick:openTheme},'Theme'),
-    React.createElement(GoldMini,null)
+function Header(){
+  return React.createElement('div',{className:'header'},
+    React.createElement('div',{className:'header-left'},
+      React.createElement('button',{className:'focusbtn',onClick:openTheme},'Theme')
+    ),
+    React.createElement('div',null),
+    React.createElement('div',{className:'header-right'},
+      React.createElement(GoldMini,null)
+    )
+  );
+}
+
+function FocusBar({focus,setFocus}){
+  return React.createElement('div',{className:'focusbar'},
+    ['All','Daily','Weekly'].map(x=>React.createElement('button',{key:x,className:'focusbtn '+(focus===x?'active':''),onClick:()=>setFocus(x)},x))
   );
 }
 
@@ -281,15 +292,8 @@ function App(){
   const [focus,setFocus]=React.useState(()=>load()?.focus??"All");
   React.useEffect(()=>{const s=load()||{};s.focus=focus;save(s)},[focus]);
   return React.createElement('div',{className:'container'},
-    React.createElement('div',{className:'header'},
-      React.createElement('div',null,
-        React.createElement('h1',{className:'title'}, React.createElement('img',{src:'./arts/bomb.svg',alt:''}), " FO76 Tracker")
-      ),
-      React.createElement(HeaderActions,null)
-    ),
-    React.createElement('div',{className:'focusbar'},
-      ['All','Daily','Weekly'].map(x=>React.createElement('button',{key:x,className:'focusbtn '+(focus===x?'active':''),onClick:()=>setFocus(x)},x))
-    ),
+    React.createElement(Header,null),
+    React.createElement(FocusBar,{focus,setFocus}),
     React.createElement('div',{className:focus==='All'?'twocol':''},
       React.createElement(DailyPanel,{show:focus!=='Weekly'}),
       React.createElement(WeeklyPanel,{show:focus!=='Daily'})
@@ -299,7 +303,7 @@ function App(){
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(React.StrictMode,null,React.createElement(App)));
-if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw-180.js')) }
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw-188.js')) }
 </script>
 </body>
 </html>
