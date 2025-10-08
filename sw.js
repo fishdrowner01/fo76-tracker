@@ -1,11 +1,9 @@
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open('fo76-ghpages-v1').then((cache) => cache.addAll([
-      './','./index.html','./style.css','./arts/bolt.svg',
-      './icons/icon-192.png','./icons/icon-512.png'
-    ]))
-  );
+  e.waitUntil(caches.open('fo76-ghpages-v2').then((cache) => cache.addAll([
+    './','./index.html','./style.css','./arts/bolt.svg',
+    './icons/icon-192.png','./icons/icon-512.png'
+  ])));
   self.skipWaiting();
 });
 self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
