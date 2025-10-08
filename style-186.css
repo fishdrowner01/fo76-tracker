@@ -29,7 +29,7 @@ body{margin:0; background:linear-gradient(180deg,var(--bg1),var(--bg2)); color:v
 
 .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
 .card .head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.card .head .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto}
+.card .head .right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-left:auto}
 .card .body{padding:12px 14px}
 
 .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
@@ -70,17 +70,23 @@ body{margin:0; background:linear-gradient(180deg,var(--bg1),var(--bg2)); color:v
   background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);color:var(--text);padding:10px 14px;border-radius:12px}
 .update-toast button{border:1px solid var(--border);background:var(--panel2);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
 
-/* ===== Custom Checkboxes (solid black check) ===== */
+/* ===== Softer custom checkboxes ===== */
 .chk{appearance:none;-webkit-appearance:none;-moz-appearance:none;outline:none;
   display:inline-grid;place-content:center;cursor:pointer;
   width:22px;height:22px;border-radius:6px;border:1px solid var(--border);
-  background:linear-gradient(180deg,var(--panel2),var(--panel)); transition:transform .12s ease, box-shadow .12s ease, background .12s ease}
+  background:radial-gradient(ellipse at 50% 55%, rgba(255,255,255,0.06), rgba(0,0,0,0.0) 60%), 
+             linear-gradient(180deg, #0b1810, #0a130d);
+  transition:transform .12s ease, box-shadow .12s ease, background .12s ease}
 .chk:hover{box-shadow:0 0 0 4px var(--glow)}
 .chk:active{transform:scale(.96)}
-.chk:checked{background:linear-gradient(180deg,#0a0a0a,#000);}
+.chk:checked{background:radial-gradient(ellipse at 50% 55%, rgba(255,255,255,0.08), rgba(0,0,0,0.0) 60%), 
+             linear-gradient(180deg, #0e0e0e, #050505);}
 .chk:checked::after{content:""; width:12px;height:12px; display:block;
-  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path fill="black" d="M20.285 6.709l-11.4 11.4l-5.657-5.657l1.414-1.415l4.243 4.243l9.986-9.986z"/></svg>') center / contain no-repeat;
-  background:#000;}
-/* small variant (Gold/Caps/Hide Completed) */
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path fill="gray" d="M20.285 6.709l-11.4 11.4l-5.657-5.657l1.414-1.415l4.243 4.243l9.986-9.986z"/></svg>') center / contain no-repeat;
+  background:#9aa0a6}
 .chk--sm{width:18px;height:18px;border-radius:5px}
 .chk--sm:checked::after{width:10px;height:10px}
+
+/* ===== Toast ===== */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:9998;background:var(--panel);
+  border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:12px;box-shadow:var(--shadow)}

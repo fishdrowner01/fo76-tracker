@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="./style-186.css" />
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- Tesseract UMD loader (enables Tesseract global) -->
+<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -26,7 +28,7 @@
   </div>
 </div>
 
-<!-- Theme overlay -->
+<!-- Theme overlay (labels removed) -->
 <div class="overlay" id="themeOverlay">
   <div class="box" style="text-align:center;max-width:380px">
     <h4>Theme</h4>
@@ -43,7 +45,7 @@
   <div class="box">
     <h3 style="margin:0 0 8px">FO76 Tracker — Quick guide</h3>
     <ul style="margin:8px 0 0 18px;line-height:1.5">
-      <li><b>Theme</b>: pick a color from the wheel.</li>
+      <li><b>Theme</b>: pick any color slice.</li>
       <li><b>All / Daily / Weekly</b>: switch views; “All” shows both panels.</li>
       <li><b>Import image</b>: upload a screenshot; the app OCRs it and adds challenges.</li>
       <li><b>Hide completed</b>: hides checked items; auto-resets daily at noon ET, weekly on Tue noon ET.</li>
@@ -56,33 +58,31 @@
 </div>
 
 <script>
-/* ===== Theme system (7 slices) ===== */
+/* ===== Theme system (labels removed) ===== */
 const THEMES = {
-  green: { label:'Green',  color:'#4cff5a', tokens:{ '--bg':'#031207','--bg1':'#05160b','--bg2':'#072313','--panel':'rgba(3,18,9,.9)','--panel2':'#04150a','--border':'#0b3a1d','--text':'#c7ffb0','--muted':'#7acb79','--acc':'#4cff5a','--acc2':'#6dff84','--glow':'rgba(76,255,90,.25)' } },
-  blue:  { label:'Blue',   color:'#4cbcff', tokens:{ '--bg':'#07121f','--bg1':'#0c1a2e','--bg2':'#102541','--panel':'rgba(8,20,35,.9)','--panel2':'#0a1729','--border':'#113154','--text':'#c7e9ff','--muted':'#7ab1cb','--acc':'#4cbcff','--acc2':'#78d4ff','--glow':'rgba(76,188,255,.25)' } },
-  red:   { label:'Red',    color:'#ff4c4c', tokens:{ '--bg':'#1f0a0a','--bg1':'#2a0f0f','--bg2':'#3b1414','--panel':'rgba(35,8,8,.9)','--panel2':'#1f0d0d','--border':'#4a1b1b','--text':'#ffc7c7','--muted':'#cb7a7a','--acc':'#ff4c4c','--acc2':'#ff7a7a','--glow':'rgba(255,76,76,.25)' } },
-  violet:{ label:'Violet', color:'#b84cff', tokens:{ '--bg':'#130a1f','--bg1':'#1b0f2a','--bg2':'#27143b','--panel':'rgba(26,8,35,.9)','--panel2':'#1a0d29','--border':'#2d1b4a','--text':'#e1c7ff','--muted':'#b07acb','--acc':'#b84cff','--acc2':'#d178ff','--glow':'rgba(184,76,255,.25)' } },
-  mono:  { label:'Mono',   color:'#dfdfdf', tokens:{ '--bg':'#0d0d0d','--bg1':'#121212','--bg2':'#1a1a1a','--panel':'rgba(20,20,20,.9)','--panel2':'#141414','--border':'#2a2a2a','--text':'#dfdfdf','--muted':'#aaa','--acc':'#e0e0e0','--acc2':'#fff','--glow':'rgba(255,255,255,.18)' } },
-  amber: { label:'Amber',  color:'#ffb84c', tokens:{ '--bg':'#1b1205','--bg1':'#201606','--bg2':'#2a1d08','--panel':'rgba(34,22,8,.92)','--panel2':'#1c1307','--border':'#3a2a0e','--text':'#ffe9c2','--muted':'#d7b37a','--acc':'#ffb84c','--acc2':'#ffd78a','--glow':'rgba(255,184,76,.25)'} },
-  teal:  { label:'Teal',   color:'#39d3c6', tokens:{ '--bg':'#071c1a','--bg1':'#0a2321','--bg2':'#0e2f2c','--panel':'rgba(8,30,29,.9)','--panel2':'#0a2523','--border':'#114743','--text':'#c7fff7','--muted':'#7ad3cb','--acc':'#39d3c6','--acc2':'#7ff3e8','--glow':'rgba(57,211,198,.25)'} }
+  green:{ color:'#4cff5a', tokens:{ '--bg':'#031207','--bg1':'#05160b','--bg2':'#072313','--panel':'rgba(3,18,9,.9)','--panel2':'#04150a','--border':'#0b3a1d','--text':'#c7ffb0','--muted':'#7acb79','--acc':'#4cff5a','--acc2':'#6dff84','--glow':'rgba(76,255,90,.25)' } },
+  blue: { color:'#4cbcff', tokens:{ '--bg':'#07121f','--bg1':'#0c1a2e','--bg2':'#102541','--panel':'rgba(8,20,35,.9)','--panel2':'#0a1729','--border':'#113154','--text':'#c7e9ff','--muted':'#7ab1cb','--acc':'#4cbcff','--acc2':'#78d4ff','--glow':'rgba(76,188,255,.25)' } },
+  red:  { color:'#ff4c4c', tokens:{ '--bg':'#1f0a0a','--bg1':'#2a0f0f','--bg2':'#3b1414','--panel':'rgba(35,8,8,.9)','--panel2':'#1f0d0d','--border':'#4a1b1b','--text':'#ffc7c7','--muted':'#cb7a7a','--acc':'#ff4c4c','--acc2':'#ff7a7a','--glow':'rgba(255,76,76,.25)' } },
+  violet:{ color:'#b84cff', tokens:{ '--bg':'#130a1f','--bg1':'#1b0f2a','--bg2':'#27143b','--panel':'rgba(26,8,35,.9)','--panel2':'#1a0d29','--border':'#2d1b4a','--text':'#e1c7ff','--muted':'#b07acb','--acc':'#b84cff','--acc2':'#d178ff','--glow':'rgba(184,76,255,.25)' } },
+  mono: { color:'#dfdfdf', tokens:{ '--bg':'#0d0d0d','--bg1':'#121212','--bg2':'#1a1a1a','--panel':'rgba(20,20,20,.9)','--panel2':'#141414','--border':'#2a2a2a','--text':'#dfdfdf','--muted':'#aaa','--acc':'#e0e0e0','--acc2':'#fff','--glow':'rgba(255,255,255,.18)' } },
+  amber:{ color:'#ffb84c', tokens:{ '--bg':'#1b1205','--bg1':'#201606','--bg2':'#2a1d08','--panel':'rgba(34,22,8,.92)','--panel2':'#1c1307','--border':'#3a2a0e','--text':'#ffe9c2','--muted':'#d7b37a','--acc':'#ffb84c','--acc2':'#ffd78a','--glow':'rgba(255,184,76,.25)'} },
+  teal: { color:'#39d3c6', tokens:{ '--bg':'#071c1a','--bg1':'#0a2321','--bg2':'#0e2f2c','--panel':'rgba(8,30,29,.9)','--panel2':'#0a2523','--border':'#114743','--text':'#c7fff7','--muted':'#7ad3cb','--acc':'#39d3c6','--acc2':'#7ff3e8','--glow':'rgba(57,211,198,.25)'} }
 };
 function applyTheme(name){ const t=THEMES[name]||THEMES.green; const r=document.documentElement; Object.entries(t.tokens).forEach(([k,v])=>r.style.setProperty(k,v)); localStorage.setItem('fo76-theme',name); }
 function openTheme(){ document.getElementById('themeOverlay').classList.add('show') } function closeTheme(){ document.getElementById('themeOverlay').classList.remove('show') }
-function drawWheel(){ const svg=document.getElementById('wheel'); Array.from(svg.querySelectorAll('path,text,circle.slice')).forEach(n=>n.remove());
+function drawWheel(){ const svg=document.getElementById('wheel'); Array.from(svg.querySelectorAll('path,circle.slice')).forEach(n=>n.remove());
   const keys=Object.keys(THEMES),cx=100,cy=100,r=90,stroke="rgba(0,0,0,0.0001)",step=(2*Math.PI)/keys.length;
   keys.forEach((k,i)=>{ const a0=-Math.PI/2+i*step, a1=-Math.PI/2+(i+1)*step+0.0001;
     const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0), x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1), large=(a1-a0)>Math.PI?1:0;
     const p=document.createElementNS('http://www.w3.org/2000/svg','path'); p.setAttribute('d',`M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`);
     p.setAttribute('fill',THEMES[k].color); p.setAttribute('stroke',stroke); p.setAttribute('stroke-width','1'); p.setAttribute('filter','url(#soft)'); p.style.cursor='pointer';
     p.addEventListener('click',()=>{applyTheme(k); closeTheme();}); svg.appendChild(p);
-    const ta=(a0+a1)/2,tr=r*0.62,tx=cx+tr*Math.cos(ta),ty=cy+tr*Math.sin(ta)+4; const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x',tx); t.setAttribute('y',ty); t.setAttribute('text-anchor','middle'); t.setAttribute('font-size','12'); t.setAttribute('font-weight','900'); t.setAttribute('fill','#001f09'); t.textContent=THEMES[k].label; svg.appendChild(t);
   });
   const cap=document.createElementNS('http://www.w3.org/2000/svg','circle'); cap.setAttribute('class','slice'); cap.setAttribute('cx',100); cap.setAttribute('cy',100); cap.setAttribute('r',24);
   cap.setAttribute('fill','var(--panel2)'); cap.setAttribute('stroke','var(--border)'); cap.setAttribute('stroke-width','2'); svg.appendChild(cap);
 }
 
-/* ===== Auto-update ===== */
+/* ===== Auto-update (unchanged behavior) ===== */
 function setupAutoUpdateUI() {
   const style = document.createElement('style');
   style.textContent = `.update-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;display:flex;gap:10px;align-items:center;z-index:9999;background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);color:var(--text);padding:10px 14px;border-radius:12px}.update-toast button{border:1px solid var(--border);background:var(--panel2);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}`;
@@ -110,47 +110,40 @@ function setupAutoUpdate(){
   });
 }
 
-/* ===== OCR seeding (same as 1.7.2) ===== */
+/* ===== OCR seeding + result toasts ===== */
 const OCR_MIRRORS = {
   worker:['https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js','https://unpkg.com/tesseract.js@5/dist/worker.min.js','https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.3/worker.min.js'],
   core:['https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.2/tesseract-core.wasm.js','https://unpkg.com/tesseract.js-core@5.0.2/tesseract-core.wasm.js','https://cdnjs.cloudflare.com/ajax/libs/tesseract.js-core/5.0.2/tesseract-core.wasm.js'],
   lang:['https://github.com/naptha/tessdata/blob/gh-pages/4.0.0/eng.traineddata.gz?raw=true','https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz']
 };
-async function headExists(url){
-  try{ const r=await fetch(url,{method:'GET',cache:'no-cache',mode:'cors'}); return r.ok; }catch{return false}
-}
+async function headExists(url){ try{ const r=await fetch(url,{method:'GET',cache:'no-cache',mode:'cors'}); return r.ok; }catch{return false} }
 async function seedOne(name, urls, localPath){
   for(const u of urls){
-    try{
-      const r = await fetch(u, {cache:'no-store',mode:'cors'});
-      if(!r.ok) continue;
-      const b = await r.blob();
-      await caches.open('fo76-ocr').then(c=>c.put(localPath, new Response(b)));
-      return URL.createObjectURL(b);
+    try{ const r=await fetch(u,{cache:'no-store',mode:'cors'}); if(!r.ok) continue; const b=await r.blob();
+      await caches.open('fo76-ocr').then(c=>c.put(localPath,new Response(b))); return URL.createObjectURL(b);
     }catch(e){}
-  }
-  throw new Error('Failed to download '+name);
+  } throw new Error('Failed to download '+name);
 }
 async function ensureOCR(){
-  const need = [];
+  const need=[];
   if(!(await headExists('./ocr/worker.min.js'))) need.push('worker');
   if(!(await headExists('./ocr/tesseract-core.wasm.js'))) need.push('core');
   if(!(await headExists('./ocr/eng.traineddata.gz'))) need.push('lang');
   if(need.length===0) return {workerPath:'./ocr/worker.min.js', corePath:'./ocr/tesseract-core.wasm.js', langPath:'./ocr'};
-
   document.getElementById('ocrStatus').textContent='Offline OCR files missing — downloading once…';
-  const out = {workerPath:'./ocr/worker.min.js', corePath:'./ocr/tesseract-core.wasm.js', langPath:'./ocr'};
-  if(need.includes('worker')){ document.getElementById('ocrStatus').textContent='Downloading OCR worker…'; out.workerPath = await seedOne('worker', OCR_MIRRORS.worker, './ocr/worker.min.js'); }
-  if(need.includes('core')){ document.getElementById('ocrStatus').textContent='Downloading OCR core…'; out.corePath   = await seedOne('core',   OCR_MIRRORS.core,   './ocr/tesseract-core.wasm.js'); }
-  if(need.includes('lang')){ document.getElementById('ocrStatus').textContent='Downloading language data…'; out.langPath  = (await seedOne('eng',    OCR_MIRRORS.lang,   './ocr/eng.traineddata.gz')).replace(/eng\.traineddata\.gz$/,''); }
-  document.getElementById('ocrStatus').textContent='Ready.';
-  return out;
+  const out={workerPath:'./ocr/worker.min.js', corePath:'./ocr/tesseract-core.wasm.js', langPath:'./ocr'};
+  if(need.includes('worker')){ document.getElementById('ocrStatus').textContent='Downloading OCR worker…'; out.workerPath=await seedOne('worker',OCR_MIRRORS.worker,'./ocr/worker.min.js'); }
+  if(need.includes('core')){ document.getElementById('ocrStatus').textContent='Downloading OCR core…'; out.corePath=await seedOne('core',OCR_MIRRORS.core,'./ocr/tesseract-core.wasm.js'); }
+  if(need.includes('lang')){ document.getElementById('ocrStatus').textContent='Downloading language data…'; out.langPath=(await seedOne('eng',OCR_MIRRORS.lang,'./ocr/eng.traineddata.gz')).replace(/eng\.traineddata\.gz$/,''); }
+  document.getElementById('ocrStatus').textContent='Ready.'; return out;
 }
 
+/* ===== Storage / utils ===== */
 const KEY="fo76-tracker-v1";
 const load=()=>{try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):{} }catch{return{}}}
 const save=(s)=>{try{localStorage.setItem(KEY,JSON.stringify(s))}catch{}}
 const newid=()=>Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>{t.remove()}, 2600); }
 
 function fmt(t){const ms=t-new Date();if(ms<=0)return"Resetting…";const s=Math.floor(ms/1e3),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);const parts=[];if(d)parts.push(`${d}d`);if(h||d)parts.push(`${h}h`);if(m||h||d)parts.push(`${m}m`);parts.push(`${s%60}s`);return parts.join(" ")}
 function nextDaily(){const e=new Date();e.setHours(12,0,0,0);if(e<=new Date())e.setDate(e.getDate()+1);return e}
@@ -168,6 +161,7 @@ function parseChallenges(raw, mode){
 }
 function toItems(lines){ return lines.map(txt=>({ id:newid(), text: txt.replace(/^\s*(✔|✓|✅|!|\||i|★)\s*/i,'').replace(/\s*(✔|✓|✅|!|\||i|★)\s*$/i,'').trim(), done: looksCompleted(txt) })); }
 
+/* ===== Mini widgets ===== */
 function GoldMini(){
   const st=load();
   const [daily,setDaily]=React.useState(!!(st.gold||{}).dailyDone);
@@ -196,6 +190,7 @@ function CapsMini(){
   );
 }
 
+/* ===== Panels ===== */
 function DailyPanel({show=true}){
   if(!show) return null;
   const st=load();
@@ -214,8 +209,9 @@ function DailyPanel({show=true}){
     const f=ev.target.files?.[0]; if(!f) return;
     overlay.show('Preparing OCR…'); const text = await runOCR(f);
     const adds = toItems(parseChallenges(text,'daily'));
-    if (adds.length) setItems(L => [...L, ...adds]);
     overlay.hide(); ev.target.value = "";
+    if (adds.length){ setItems(L => [...L, ...adds]); toast(`Imported ${adds.length} challenge${adds.length>1?'s':''}`); }
+    else { toast('No challenge-like text found'); }
   }
   const shown = hide ? items.filter(x=>!x.done) : items;
   return React.createElement('div',{className:'card'},
@@ -262,8 +258,9 @@ function WeeklyPanel({show=true}){
     const f=ev.target.files?.[0]; if(!f) return;
     overlay.show('Preparing OCR…'); const text = await runOCR(f);
     const adds = toItems(parseChallenges(text,'weekly'));
-    if (adds.length) setItems(L => [...L, ...adds]);
     overlay.hide(); ev.target.value = "";
+    if (adds.length){ setItems(L => [...L, ...adds]); toast(`Imported ${adds.length} challenge${adds.length>1?'s':''}`); }
+    else { toast('No challenge-like text found'); }
   }
   const shown = hide ? items.filter(x=>!x.done) : items;
   return React.createElement('div',{className:'card'},
@@ -291,6 +288,7 @@ function WeeklyPanel({show=true}){
   );
 }
 
+/* ===== Header & app ===== */
 function Header(){
   return React.createElement('div',{className:'header'},
     React.createElement('div',{className:'header-left'},
@@ -328,7 +326,7 @@ function App(){
   );
 }
 
-// OCR runner
+/* ===== OCR runner ===== */
 const overlay = {
   show:(msg)=>{const ov=document.getElementById('ocrOverlay'); const st=document.getElementById('ocrStatus'); st.textContent=msg||'Working…'; ov.classList.add('show');},
   msg:(m)=>document.getElementById('ocrStatus').textContent=m,
@@ -369,10 +367,10 @@ async function runOCR(file){
   }catch(e){ console.error(e); overlay.msg("Couldn’t initialize OCR. Check connection the first time, then it’s offline."); document.getElementById('ocrRetry').style.display='inline-block'; return ""; }
 }
 
-// Mount + SW register
+/* ===== Mount & SW ===== */
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(React.StrictMode,null,React.createElement(App)));
-if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw-193.js')); }
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw-194.js')); }
 </script>
 </body>
 </html>
