@@ -36,30 +36,96 @@ function showOverlay(msg){ const ov=document.getElementById('ocrOverlay'); const
 function updateOverlay(msg){ const st=document.getElementById('ocrStatus'); st.textContent=msg; }
 function hideOverlay(){ document.getElementById('ocrOverlay').classList.remove('show'); }
 
+<script>
 async function runOCR(file){
+  // Show overlay
   showOverlay("Loading OCR engine…");
+
+  // Worker config (fast + stable)
   const opts = {
-    logger: m => { if(m.status) updateOverlay(`${m.status} ${Math.round((m.progress||0)*100)}%`) },
+    logger: m => { if (m.status) updateOverlay(`${m.status} ${Math.round((m.progress||0)*100)}%`) },
     workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0/dist/tesseract-core.wasm.js',
-    langPath: 'https://tessdata.projectnaptha.com/5'
+    corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0/dist/tesseract-core.wasm.js',
+    langPath:   'https://tessdata.projectnaptha.com/5'
   };
-  const to = setTimeout(()=>updateOverlay("Still loading… big images can take a minute on mobile."), 8000);
+
+  // Load the image into a canvas so we can rotate/scale if needed
+  function loadToCanvas(file){
+    return new Promise((resolve,reject)=>{
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        // Downscale very large images (faster OCR, no quality loss for text)
+        const MAX = 2200;
+        let {width:w, height:h} = img;
+        if (Math.max(w,h) > MAX) {
+          const scale = MAX / Math.max(w,h); w = Math.round(w*scale); h = Math.round(h*scale);
+        }
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const cx = cv.getContext('2d');
+        cx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(cv);
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  // Rotate a canvas by N degrees (90/180/270)
+  function rotateCanvas(src, deg){
+    const rad = deg * Math.PI/180;
+    const s = Math.abs(Math.sin(rad)), c = Math.abs(Math.cos(rad));
+    const w = src.width, h = src.height;
+    const rw = Math.round(w*c + h*s), rh = Math.round(w*s + h*c);
+    const cv = document.createElement('canvas');
+    cv.width = rw; cv.height = rh;
+    const cx = cv.getContext('2d');
+    cx.translate(rw/2, rh/2);
+    cx.rotate(rad);
+    cx.drawImage(src, -w/2, -h/2);
+    return cv;
+  }
+
+  // Convert a canvas to a Blob for Tesseract
+  function canvasToBlob(cv){
+    return new Promise(res => cv.toBlob(b => res(b), 'image/png', 0.92));
+  }
+
   try{
     const worker = await Tesseract.createWorker(opts);
-    clearTimeout(to);
-    await worker.loadLanguage('eng'); await worker.initialize('eng');
+
+    await worker.loadLanguage('eng');
+    await worker.initialize('eng');
+
+    // 1) Load in canvas
+    const baseCanvas = await loadToCanvas(file);
+
+    // 2) Ask Tesseract to detect orientation (OSD)
+    updateOverlay("Detecting orientation…");
+    const osd = await worker.detect(baseCanvas);
+    // osd.data.orientation.deg is typically 0, 90, 180, 270
+    const angle = Math.round(osd.data.orientation.deg || 0);
+
+    // 3) If needed, rotate canvas so text is upright
+    const readyCanvas = (angle % 360 === 0) ? baseCanvas : rotateCanvas(baseCanvas, 360 - angle);
+    const blob = await canvasToBlob(readyCanvas);
+
+    // 4) Recognize (psm 6 = assume a block of text; tweakable)
     updateOverlay("Recognizing…");
-    const ret = await worker.recognize(file);
+    const result = await worker.recognize(blob, { tessedit_pageseg_mode: 6 });
+
     await worker.terminate();
-    return ret.data.text || "";
-  } catch(e){
+    return result.data.text || "";
+  } catch (e) {
     updateOverlay("OCR error: " + e.message);
     return "";
   } finally {
     setTimeout(hideOverlay, 1200);
   }
 }
+</script>
 
 function GoldMini(){
   const [daily,setDaily]=React.useState(()=>!!load()?.gold?.dailyDone);
