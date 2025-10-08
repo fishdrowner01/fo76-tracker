@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#05070b" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<title>FO76 Tracker</title>
+<link rel="stylesheet" href="./style.css" />
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+// == helpers ==
+const ET_TZ="America/New_York", KEY="fo76-tracker-v1";
+const nowET=()=>new Date(new Date().toLocaleString("en-US",{timeZone:ET_TZ}));
+const nextDaily=()=>{const e=nowET(),t=new Date(e);t.setHours(12,0,0,0);return t<=e&&t.setDate(t.getDate()+1),t};
+const nextWeekly=()=>{const e=nowET(),t=new Date(e),n=2;t.setHours(12,0,0,0);const o=(n-t.getDay()+7)%7;let a=o;return 0===a&&t<=e&&(a=7),a>0&&t.setDate(t.getDate()+a),t<=e&&t.setDate(t.getDate()+7),t};
+const fmt=(t)=>{const e=t-nowET();if(e<=0)return"Resetting…";const n=Math.floor(e/1e3),o=Math.floor(n/86400),a=Math.floor(n%86400/3600),r=Math.floor(n%3600/60),l=[];return o&&l.push(`${o}d`),(a||o)&&l.push(`${a}h`),(r||a||o)&&l.push(`${r}m`),l.push(`${n%60}s`),l.join(" ")};
+const load=()=>{try{const t=localStorage.getItem(KEY);return t?JSON.parse(t):null}catch{return null}};
+const save=(t)=>{try{localStorage.setItem(KEY,JSON.stringify(t))}catch{}};
+const newid=()=>Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);
+
+// == components ==
+function GoldMini(){
+  const [daily,setDaily]=React.useState(()=>!!load()?.gold?.dailyDone);
+  const [weekly,setWeekly]=React.useState(()=>!!load()?.gold?.weeklyDone);
+  const d=React.useMemo(()=>nextDaily(),[]), w=React.useMemo(()=>nextWeekly(),[]);
+  const [tick,setTick]=React.useState(0);
+  React.useEffect(()=>{const i=setInterval(()=>setTick(t=>t+1),1000);return()=>clearInterval(i)},[]);
+  React.useEffect(()=>{const s=load()||{};s.gold={dailyDone:daily,weeklyDone:weekly};save(s)},[daily,weekly]);
+  React.useEffect(()=>{const i=setInterval(()=>{const n=nowET();n>d&&daily&&setDaily(false);n>w&&weekly&&setWeekly(false)},15000);return()=>clearInterval(i)},[daily,weekly,d,w]);
+  const now=nowET();const showD=d-now<=4*60*60*1000, showW=w-now<=24*60*60*1000;
+  let badge=""; badge=showD&&showW?`D ${fmt(d)} · W ${fmt(w)}`:showD?`Daily ${fmt(d)}`:showW?`Weekly ${fmt(w)}`:"";
+  return React.createElement('div',{className:'gold'},
+    React.createElement('div',null,
+      React.createElement('h3',null,'Gold'),
+      badge?React.createElement('div',{className:'badge'},badge):null
+    ),
+    React.createElement('div',{className:'checks'},
+      React.createElement('label',null,React.createElement('input',{type:'checkbox',checked:daily,onChange:e=>setDaily(e.target.checked)}),' Daily'),
+      React.createElement('label',null,React.createElement('input',{type:'checkbox',checked:weekly,onChange:e=>setWeekly(e.target.checked)}),' Weekly')
+    )
+  );
+}
+
+function DailyPanel({show=true}){
+  if(!show) return null;
+  const def=[{id:newid(),text:"Complete a Daily Challenge",done:false},{id:newid(),text:"Kill 10 Creatures",done:false}];
+  const [items,setItems]=React.useState(()=>load()?.daily??def);
+  const [txt,setTxt]=React.useState(""); const [hide,setHide]=React.useState(()=>!!load()?.dailyHideDone);
+  const [progress,setProgress]=React.useState(""); const d=React.useMemo(()=>nextDaily(),[]);
+  React.useEffect(()=>{const s=load()||{};s.daily=items;s.dailyHideDone=hide;save(s)},[items,hide]);
+  React.useEffect(()=>{const i=setInterval(()=>{nowET()>d&&setItems(L=>L.map(x=>({...x,done:false})))},15000);return()=>clearInterval(i)},[d]);
+  function add(){ if(!txt.trim()) return; setItems(L=>[...L,{id:newid(),text:txt.trim(),done:false}]); setTxt("")}
+  function toggle(i){ setItems(L=>L.map(x=>x.id===i?{...x,done:!x.done}:x))}
+  function del(i){ setItems(L=>L.filter(x=>x.id!==i))}
+  function clearDone(){ setItems(L=>L.filter(x=>!x.done))}
+  function resetAll(){ setItems(L=>L.map(x=>({...x,done:false})))}
+  async function importImage(ev){
+    const f=ev.target.files?.[0]; if(!f) return; setProgress("Loading OCR engine…");
+    try{
+      if(window.Tesseract){
+        const worker=await window.Tesseract.createWorker({logger:m=>{if(m.status) setProgress(`${m.status} ${Math.round((m.progress||0)*100)}%`)}});
+        await worker.loadLanguage('eng'); await worker.initialize('eng');
+        setProgress("Reading image…"); const ret=await worker.recognize(f); await worker.terminate();
+        const lines=ret.data.text.split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);
+        const adds=lines.map(t=>({id:newid(),text:t,done:false}));
+        if(adds.length){ setItems(L=>[...L,...adds]); setProgress(`Imported ${adds.length} lines 👍`) } else { setProgress("No text found. Try cropping to the text.") }
+      } else setProgress("OCR library not loaded.");
+    }catch(e){ setProgress("Import failed: "+e.message) } finally { ev.target.value=""; setTimeout(()=>setProgress(""),4000) }
+  }
+  const shown=hide?items.filter(x=>!x.done):items;
+  return React.createElement('div',{className:'card'},
+    React.createElement('div',{className:'head'},
+      React.createElement('h3',null,React.createElement('img',{src:'./arts/bolt.svg',alt:'',width:18,height:18})," Daily Challenges"),
+      React.createElement('label',{className:'switch'},
+        React.createElement('input',{type:'checkbox',checked:hide,onChange:e=>setHide(e.target.checked)})," Hide completed")
+    ),
+    React.createElement('div',{className:'body'},
+      React.createElement('div',{className:'controls'},
+        React.createElement('input',{className:'input',placeholder:'Add daily challenge…',value:txt,onChange:e=>setTxt(e.target.value)}),
+        React.createElement('button',{className:'btn',onClick:add},'Add'),
+        React.createElement('button',{className:'icon',onClick:clearDone,title:'Remove completed'},'✖'),
+        React.createElement('button',{className:'icon',onClick:resetAll,title:'Uncheck all'},'↺'),
+        React.createElement('label',{className:'btn',style:{display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer'}},
+          React.createElement('input',{type:'file',accept:'image/*',onChange:importImage,style:{display:'none'}}),'Import image')
+      ),
+      progress && React.createElement('div',{className:'progress'},progress),
+      React.createElement('div',{className:'list'},
+        shown.map(it=>React.createElement('div',{key:it.id,className:'item '+(it.done?'done':''),onClick:()=>toggle(it.id)},
+          React.createElement('input',{type:'checkbox',checked:it.done,onChange:()=>toggle(it.id)}),
+          React.createElement('div',{className:'label'},it.text),
+          React.createElement('button',{className:'icon',onClick:(e)=>{e.stopPropagation();del(it.id)}},'🗑️')
+        )),
+        shown.length===0 && React.createElement('div',{className:'progress'},'All clear.')
+      )
+    )
+  );
+}
+
+function WeeklyPanel({show=true}){
+  if(!show) return null;
+  const def=[{id:newid(),text:"Complete 5 Daily Challenges",done:false},{id:newid(),text:"Complete 10 Events",done:false}];
+  const [items,setItems]=React.useState(()=>load()?.weekly??def);
+  const [hide,setHide]=React.useState(()=>!!load()?.weeklyHideDone);
+  const w=React.useMemo(()=>nextWeekly(),[]);
+  React.useEffect(()=>{const s=load()||{};s.weekly=items;s.weeklyHideDone=hide;save(s)},[items,hide]);
+  React.useEffect(()=>{const i=setInterval(()=>{nowET()>w&&setItems(L=>L.map(x=>({...x,done:false})))},15000);return()=>clearInterval(i)},[w]);
+  function toggle(i){ setItems(L=>L.map(x=>x.id===i?{...x,done:!x.done}:x))}
+  const shown=hide?items.filter(x=>!x.done):items;
+  return React.createElement('div',{className:'card'},
+    React.createElement('div',{className:'head'},
+      React.createElement('h3',null,React.createElement('img',{src:'./arts/bolt.svg',alt:'',width:18,height:18})," Weekly"),
+      React.createElement('label',{className:'switch'},
+        React.createElement('input',{type:'checkbox',checked:hide,onChange:e=>setHide(e.target.checked)})," Hide completed")
+    ),
+    React.createElement('div',{className:'body'},
+      React.createElement('div',{className:'list'},
+        shown.map(it=>React.createElement('div',{key:it.id,className:'item '+(it.done?'done':''),onClick:()=>toggle(it.id)},
+          React.createElement('input',{type:'checkbox',checked:it.done,onChange:()=>toggle(it.id)}),
+          React.createElement('div',{className:'label'},it.text),
+          React.createElement('div',null)
+        ))
+      )
+    )
+  );
+}
+
+function App(){
+  const [focus,setFocus]=React.useState(()=>load()?.focus??"All");
+  React.useEffect(()=>{const s=load()||{};s.focus=focus;save(s)},[focus]);
+  return React.createElement('div',{className:'container'},
+    React.createElement('div',{className:'header'},
+      React.createElement('div',null,
+        React.createElement('h1',{className:'title'},
+          React.createElement('img',{src:'./arts/bolt.svg',alt:''})," FO76 Tracker — vGH"),
+        React.createElement('p',{className:'subtitle'},'Mobile • orientation-aware • OCR • focus buttons')
+      ),
+      React.createElement(GoldMini,null)
+    ),
+    React.createElement('div',{className:'focusbar'},
+      ['All','Daily','Weekly'].map(x=>React.createElement('button',{key:x,className:'focusbtn '+(focus===x?'active':''),onClick:()=>setFocus(x)},x))
+    ),
+    React.createElement('div',{className:focus==='All'?'twocol':''},
+      React.createElement(DailyPanel,{show:focus!=='Weekly'}),
+      React.createElement(WeeklyPanel,{show:focus!=='Daily'})
+    )
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(React.StrictMode, null, React.createElement(App)));
+
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'))}</script>
+</body></html>
