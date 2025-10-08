@@ -9,26 +9,21 @@
 <link rel="apple-touch-icon" href="./icons/icon-180.png" />
 <link rel="manifest" href="./manifest.webmanifest" />
 <title>FO76 Tracker</title>
-<link rel="stylesheet" href="./style-192.css" />
+<link rel="stylesheet" href="./style-193.css" />
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-<div class="app-tint"></div>
-<div class="app-curtain"></div>
-<div class="app-noise"></div>
-<div class="app-scan"></div>
-<div class="curve-wrap" id="curveWrap">
-  <div id="root"></div>
-</div>
+<div class="app-tint"></div><div class="app-curtain"></div><div class="app-noise"></div><div class="app-scan"></div>
+<div class="curve-wrap" id="curveWrap"><div id="root"></div></div>
 
 <!-- OCR overlay -->
 <div class="overlay" id="ocrOverlay" tabindex="-1">
   <div class="box">
     <h4>Importing…</h4>
     <p id="ocrStatus">Initializing…</p>
-    <p style="font-size:12px;margin:6px 0 0"><b>Tip:</b> first run may fetch OCR files (one-time). Good connection ~5–25s; later ~2–6s.</p>
+    <p style="font-size:12px;margin:6px 0 0"><b>Tip:</b> first run may fetch OCR files once. Good connection ~5–25s; later ~2–6s.</p>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
       <button class="btn" id="ocrCancel">Cancel</button>
     </div>
@@ -74,7 +69,7 @@
         <div class="choice" data-wear="classic">Classic</div>
         <div class="choice" data-wear="worn">Worn</div>
       </div>
-      <p style="font-size:12px;color:var(--muted);margin-top:8px">Adds scanlines, grain, vignette and a subtle screen curve for that CRT vibe.</p>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">Adds scanlines, grain, vignette and a subtle screen curve.</p>
     </div>
     <div style="text-align:center;margin-top:10px"><button class="btn" id="themeClose">Close</button></div>
   </div>
@@ -89,7 +84,7 @@
       <li><b>All / Daily / Weekly</b> — add/remove items in the individual tabs to keep <i>All</i> clean.</li>
       <li><b>Import image</b> — upload a screenshot; select lines; import.</li>
       <li><b>OCR</b> — Optical Character Recognition.</li>
-      <li><b>Install</b> — Android shows an Install button. On iPhone: Share → Add to Home Screen.</li>
+      <li><b>Install</b> — <button class="btn" id="installBtn">Install</button> (iPhone: Share → Add to Home Screen).</li>
       <li><b>Version</b> — <span id="verInInfo"></span> • <button class="btn" id="refreshInInfo">⟳ Refresh</button></li>
     </ul>
     <p style="font-size:12px;color:var(--muted);margin-top:8px">Unofficial fan project, not affiliated with or endorsed by Bethesda Softworks.</p>
@@ -97,18 +92,13 @@
   </div>
 </div>
 
-<!-- Footer -->
-<div class="footer">
-  <div class="bar">
-    <span id="verSlot">FO76 Tracker v1.9.2</span>
-    <button class="icon" id="refreshBtn" title="Check for updates / reload">⟳</button>
-  </div>
-</div>
+<!-- Footer (no version now) -->
+<div class="footer"><div class="bar"><button class="icon" id="refreshBtn" title="Check for updates / reload">⟳</button></div></div>
 
 <script>
-var VERSION="1.9.2";
+var VERSION="1.9.3";
 
-/* === Theme tokens === */
+/* Theme tokens and Pip‑Boy logic */
 var THEMES={
   green:{ color:'#4cff5a', tokens:{ '--bg':'#031207','--bg1':'#05160b','--bg2':'#072313','--panel':'rgba(3,18,9,.9)','--panel2':'#04150a','--border':'#0b3a1d','--text':'#c7ffb0','--muted':'#7acb79','--acc':'#4cff5a','--acc2':'#6dff84','--glow':'rgba(76,255,90,.25)','--plate-off':'#1b2a1f','--plate-on':'#0b1510','--plate-ink':'#f1f7f2' } },
   blue:{ color:'#4cbcff', tokens:{ '--bg':'#07121f','--bg1':'#0c1a2e','--bg2':'#102541','--panel':'rgba(8,20,35,.9)','--panel2':'#0a1729','--border':'#113154','--text':'#c7e9ff','--muted':'#7ab1cb','--acc':'#4cbcff','--acc2':'#78d4ff','--glow':'rgba(76,188,255,.25)','--plate-off':'#1a2634','--plate-on':'#0a121a','--plate-ink':'#eef5fa' } },
@@ -118,66 +108,34 @@ var THEMES={
 };
 function applyTokens(map){ var r=document.documentElement; Object.keys(map).forEach(function(k){ r.style.setProperty(k,map[k]); }); }
 function applyTheme(name){ var t=THEMES[name]||THEMES.green; applyTokens(t.tokens); localStorage.setItem('fo76-theme',name); if(localStorage.getItem('fo76-pip')==='1'){ applyPipBoy(true); } }
-
-/* === Pip‑Boy monochrome mode, tinted by theme accent === */
 function hexToRgb(hex){ var m=hex.replace('#',''); if(m.length===3) m = m.split('').map(function(c){return c+c}).join(''); var n=parseInt(m,16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
 function lerp(a,b,t){ return Math.round(a+(b-a)*t); }
 function rgbToHex(r,g,b){ return '#'+[r,g,b].map(function(x){var h=x.toString(16);return h.length===1?'0'+h:h}).join(''); }
 function mkMonoTokens(baseTokens, accentHex){
-  // Build a monochrome palette around the accent
   var a = hexToRgb(accentHex||'#4cff5a');
   var text = rgbToHex( lerp(180,a.r,.3), lerp(255,a.g,.7), lerp(180,a.b,.3) );
   var acc = accentHex;
   var panel2 = rgbToHex( lerp(0,a.r,.04), lerp(0,a.g,.08), lerp(0,a.b,.05) );
   var panel = 'rgba(0,0,0,.85)';
   var border = rgbToHex( lerp(0,a.r,.12), lerp(40,a.g,.45), lerp(0,a.b,.15) );
-  return {
-    '--bg': baseTokens['--bg'],
-    '--bg1': baseTokens['--bg1'],
-    '--bg2': baseTokens['--bg2'],
-    '--panel': panel,
-    '--panel2': panel2,
-    '--border': border,
-    '--text': text,
-    '--muted': rgbToHex( lerp(90,a.r,.4), lerp(160,a.g,.5), lerp(90,a.b,.4) ),
-    '--acc': acc,
-    '--acc2': acc,
-    '--glow': 'rgba('+a.r+','+a.g+','+a.b+',.22)',
-    '--plate-off': rgbToHex( lerp(20,a.r,.1), lerp(40,a.g,.1), lerp(20,a.b,.1) ),
-    '--plate-on': rgbToHex( lerp(8,a.r,.05), lerp(16,a.g,.05), lerp(8,a.b,.05) ),
-    '--plate-ink': '#f2fff4'
-  };
+  return {'--bg':baseTokens['--bg'],'--bg1':baseTokens['--bg1'],'--bg2':baseTokens['--bg2'],'--panel':panel,'--panel2':panel2,'--border':border,'--text':text,'--muted':rgbToHex( lerp(90,a.r,.4), lerp(160,a.g,.5), lerp(90,a.b,.4) ),'--acc':acc,'--acc2':acc,'--glow':'rgba('+a.r+','+a.g+','+a.b+',.22)','--plate-off':rgbToHex( lerp(20,a.r,.1), lerp(40,a.g,.1), lerp(20,a.b,.1) ),'--plate-on':rgbToHex( lerp(8,a.r,.05), lerp(16,a.g,.05), lerp(8,a.b,.05) ),'--plate-ink':'#f2fff4' };
 }
 function applyPipBoy(on){
   var r=document.documentElement; var theme=localStorage.getItem('fo76-theme')||'green'; var tokens=(THEMES[theme]||THEMES.green).tokens;
   if(on){
-    var mono = mkMonoTokens(tokens, (THEMES[theme]||THEMES.green).color);
-    applyTokens(mono);
-    // force Wear=classic if lower
-    var w = localStorage.getItem('fo76-wear')||'clean';
-    if(w==='clean'||w==='mild'){ applyWear('classic', true); }
-    document.getElementById('pipToggle').checked = true;
-    localStorage.setItem('fo76-pip','1');
+    var mono = mkMonoTokens(tokens, (THEMES[theme]||THEMES.green).color); applyTokens(mono);
+    var w = localStorage.getItem('fo76-wear')||'clean'; if(w==='clean'||w==='mild'){ applyWear('classic', true); }
+    document.getElementById('pipToggle').checked = true; localStorage.setItem('fo76-pip','1');
   }else{
-    applyTokens(tokens);
-    document.getElementById('pipToggle').checked = false;
-    localStorage.setItem('fo76-pip','0');
+    applyTokens(tokens); document.getElementById('pipToggle').checked = false; localStorage.setItem('fo76-pip','0');
   }
 }
 
-/* === Wear presets === */
+/* Wear */
 function applyWear(p, silent){
-  var r=document.documentElement; var w={clean:{s:0,g:0,v:0,c:0,t:'transparent'},
-    mild:{s:.35,g:.3,v:.2,c:.4,t:'transparent'},
-    classic:{s:.55,g:.45,v:.38,c:.65,t:'rgba(80,120,80,0.05)'},
-    worn:{s:.75,g:.6,v:.55,c:.9,t:'rgba(60,80,60,0.08)'} }[p] || {s:0,g:0,v:0,c:0,t:'transparent'};
-  r.style.setProperty('--wear-scanlines', w.s);
-  r.style.setProperty('--wear-grain', w.g);
-  r.style.setProperty('--wear-vignette', w.v);
-  r.style.setProperty('--wear-curve', w.c);
-  r.style.setProperty('--tint', w.t);
+  var r=document.documentElement; var w={clean:{s:0,g:0,v:0,c:0,t:'transparent'},mild:{s:.35,g:.3,v:.2,c:.4,t:'transparent'},classic:{s:.55,g:.45,v:.38,c:.65,t:'rgba(80,120,80,0.05)'},worn:{s:.75,g:.6,v:.55,c:.9,t:'rgba(60,80,60,0.08)'}}[p]||{s:0,g:0,v:0,c:0,t:'transparent'};
+  r.style.setProperty('--wear-scanlines', w.s); r.style.setProperty('--wear-grain', w.g); r.style.setProperty('--wear-vignette', w.v); r.style.setProperty('--wear-curve', w.c); r.style.setProperty('--tint', w.t);
   localStorage.setItem('fo76-wear', p);
-  if(!silent) localStorage.setItem('fo76-bump',''+Date.now()); // hint other tabs to redraw
 }
 function setupWear(){
   var panel=document.getElementById('wearPanel');
@@ -189,37 +147,23 @@ function setupWear(){
       closeTheme();
     });
   });
-  var saved=localStorage.getItem('fo76-wear')||'clean';
-  var el=panel.querySelector('[data-wear="'+saved+'"]'); if(el) el.classList.add('active');
-  applyWear(saved,true);
+  var saved=localStorage.getItem('fo76-wear')||'clean'; var el=panel.querySelector('[data-wear="'+saved+'"]'); if(el) el.classList.add('active'); applyWear(saved,true);
 }
 
-/* === Color wheel === */
-function drawWheel(){
-  var svg=document.getElementById('wheel'); Array.from(svg.querySelectorAll('path,circle.slice')).forEach(function(n){n.remove()});
-  var keys=Object.keys(THEMES),cx=100,cy=100,r=90,stroke='rgba(0,0,0,0.0001)',step=(2*Math.PI)/keys.length;
-  keys.forEach(function(k,i){
-    var a0=-Math.PI/2+i*step, a1=-Math.PI/2+(i+1)*step+0.0001;
-    var x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0), x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1), large=(a1-a0)>Math.PI?1:0;
-    var p=document.createElementNS('http://www.w3.org/2000/svg','path'); p.setAttribute('d',"M "+cx+" "+cy+" L "+x0+" "+y0+" A "+r+" "+r+" 0 "+large+" 1 "+x1+" "+y1+" Z");
-    p.setAttribute('fill',THEMES[k].color); p.setAttribute('stroke',stroke); p.setAttribute('stroke-width','1'); p.setAttribute('filter','url(#soft)'); p.style.cursor='pointer';
-    p.addEventListener('click',function(){applyTheme(k); if(document.getElementById('pipToggle').checked) applyPipBoy(true); closeTheme();}); svg.appendChild(p);
-  });
-  var cap=document.createElementNS('http://www.w3.org/2000/svg','circle'); cap.setAttribute('class','slice'); cap.setAttribute('cx',100); cap.setAttribute('cy',100); cap.setAttribute('r',24);
-  cap.setAttribute('fill','var(--panel2)'); cap.setAttribute('stroke','var(--border)'); cap.setAttribute('stroke-width','2'); svg.appendChild(cap);
-}
-
-/* === Install / Info / Footer === */
+/* Install */
 var deferredPrompt=null; window.addEventListener('beforeinstallprompt',function(e){e.preventDefault(); deferredPrompt=e});
 function tryPromptInstall(){ if(!deferredPrompt){ alert('If no prompt appears, use your browser menu → "Install app".'); return; } deferredPrompt.prompt(); deferredPrompt.userChoice.then(function(){ deferredPrompt=null; }); }
-async function manualRefresh(){ var reg=await navigator.serviceWorker.getRegistration(); if(reg){ await reg.update(); if(reg.waiting){ reg.waiting.postMessage('SKIP_WAITING'); return; } } location.href=location.pathname+'?r='+Date.now(); }
-function setupFooter(){ var btn=document.getElementById('refreshBtn'); if(btn) btn.addEventListener('click', manualRefresh); var slot=document.getElementById('verSlot'); if(slot) slot.textContent='FO76 Tracker v'+VERSION; document.getElementById('verInInfo').textContent='FO76 v'+VERSION; document.getElementById('refreshInInfo').addEventListener('click', manualRefresh); }
 
-/* === OCR bits === */
+/* Footer / Info */
+async function manualRefresh(){ var reg=await navigator.serviceWorker.getRegistration(); if(reg){ await reg.update(); if(reg.waiting){ reg.waiting.postMessage('SKIP_WAITING'); return; } } location.href=location.pathname+'?r='+Date.now(); }
+function setupFooter(){ var btn=document.getElementById('refreshBtn'); if(btn) btn.addEventListener('click', manualRefresh); document.getElementById('verInInfo').textContent='FO76 v'+VERSION; document.getElementById('refreshInInfo').addEventListener('click', manualRefresh); var ib=document.getElementById('installBtn'); if(ib) ib.addEventListener('click', tryPromptInstall); }
+
+/* OCR robust pipeline with worker + cancel + retries */
 function parseLines(raw){ return raw.split(/\r?\n/).map(function(s){return s.replace(/[•·►→]/g,' ').replace(/\s+/g,' ').trim()}).filter(Boolean); }
 function guessChallenges(lines){ var out=[]; for(var i=0;i<lines.length;i++){ var s=lines[i]; var keep=/(complete|craft|kill|collect|build|scrap|discover|photo|event|workshop|legendary|ops|rank|score|nuke|daily|weekly)/i.test(s) || /\b\d{1,3}\b/.test(s); if(keep) out.push(s); } return out; }
 function looksCompleted(s){ var t=s.trim().toLowerCase(); if(/^(✔|✓|✅|!|★)\s*/.test(t)) return true; if(/\s*(✔|✓|✅|!|★)$/.test(t)) return true; if(/\b(completed?|claimed?|done|finished)\b/.test(t)) return true; if(/^(\||i)\s+/.test(t)||/\s+(\||i)$/.test(t)) return true; return false }
 function toItems(lines){ return lines.map(function(txt){ return { id:Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2), text: txt.replace(/^\s*(✔|✓|✅|!|\||i|★)\s*/i,'').replace(/\s*(✔|✓|✅|!|\||i|★)\s*$/i,'').trim(), done: looksCompleted(txt) }; }); }
+
 var review = (function(){
   var el = document.getElementById('reviewOverlay'); var body=document.getElementById('reviewBody');
   var btnAll=document.getElementById('reviewSelectAll'), btnNone=document.getElementById('reviewSelectNone'), btnCopy=document.getElementById('reviewCopy');
@@ -234,10 +178,10 @@ var review = (function(){
 })();
 
 var overlay = (function(){
-  var canceled=false; var el=document.getElementById('ocrOverlay'); var status=document.getElementById('ocrStatus'); var cancel=document.getElementById('ocrCancel');
-  function onCancel(){ canceled=true; hide(); }
+  var canceled=false; var el=document.getElementById('ocrOverlay'); var status=document.getElementById('ocrStatus'); var cancel=document.getElementById('ocrCancel'); var currentTerminator=null;
+  function onCancel(){ canceled=true; if(currentTerminator) try{ currentTerminator(); }catch(e){} hide(); }
   cancel.addEventListener('click', onCancel); document.addEventListener('keydown', function(e){ if(e.key==='Escape' && el.classList.contains('show')) onCancel(); });
-  return { show:function(msg){ canceled=false; status.textContent=msg||'Working…'; el.classList.add('show'); el.focus(); }, msg:function(m){ if(!canceled) status.textContent=m }, hide:function(){ el.classList.remove('show') }, get canceled(){ return canceled } };
+  return { show:function(msg, term){ canceled=false; status.textContent=msg||'Working…'; el.classList.add('show'); currentTerminator=term||null; el.focus(); }, msg:function(m){ if(!canceled) status.textContent=m }, hide:function(){ el.classList.remove('show') }, setTerminator:function(t){ currentTerminator=t }, get canceled(){ return canceled } };
 })();
 
 var OCR_MIRRORS = {
@@ -250,7 +194,6 @@ async function seedOne(name, urls, localPath){
   throw new Error('Failed '+name);
 }
 async function ensureOCR(){
-  // always try local first; if missing, seed from mirrors (one-time)
   var out={workerPath:'./ocr/worker.min.js', corePath:'./ocr/tesseract-core.wasm.js', langPath:'./ocr'};
   try{
     var tests=[out.workerPath,out.corePath,out.langPath+'/eng.traineddata.gz'];
@@ -264,9 +207,57 @@ async function ensureOCR(){
   overlay.msg('Ready.');
   return out;
 }
-function toast(msg){ var t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(function(){t.remove()}, 2200); }
+function canvasPrep(img, rotate){
+  var MAX=1600; var w=img.width,h=img.height;
+  if(rotate%180!==0){ var t=w; w=h; h=t; }
+  var s=1; var mx=Math.max(w,h); if(mx>MAX) s=MAX/mx;
+  var cv=document.createElement('canvas'); cv.width=Math.round(w*s); cv.height=Math.round(h*s);
+  var cx=cv.getContext('2d');
+  cx.save();
+  if(rotate){ cx.translate(cv.width/2, cv.height/2); cx.rotate(rotate*Math.PI/180); cx.drawImage(img, -img.height*s/2, -img.width*s/2, img.height*s, img.width*s); }
+  else{ cx.drawImage(img,0,0,cv.width,cv.height); }
+  cx.restore();
+  // enhance: grayscale + contrast
+  var id=cx.getImageData(0,0,cv.width,cv.height); var d=id.data;
+  for(var i=0;i<d.length;i+=4){ var r=d[i],g=d[i+1],b=d[i+2]; var y=(r*0.299+g*0.587+b*0.114); y = Math.min(255, Math.max(0, (y-128)*1.25+128 )); d[i]=d[i+1]=d[i+2]=y; }
+  cx.putImageData(id,0,0);
+  return cv;
+}
+async function recognizeWithRetries(file, o){
+  overlay.msg('Loading image…');
+  var url=URL.createObjectURL(file); var img=new Image(); await new Promise(function(res,rej){ img.onload=res; img.onerror=rej; img.src=url; });
+  URL.revokeObjectURL(url);
+  var rotations=[0,90,180,270]; var psms=[6,3,4]; // 6=block of text, 3=auto, 4=column
+  var best={text:'', score:0}; var canceled=false;
+  const worker = await Tesseract.createWorker({ workerPath:o.workerPath, corePath:o.corePath, langPath:o.langPath, logger: m=>{ if(m.status) overlay.msg(m.status+' '+Math.round((m.progress||0)*100)+'%') } });
+  overlay.setTerminator(async function(){ try{ canceled=true; await worker.terminate(); }catch(e){} });
+  await worker.load(); await worker.loadLanguage('eng'); await worker.initialize('eng');
+  for (var r=0;r<rotations.length && !canceled;r++){
+    var cv=canvasPrep(img, rotations[r]);
+    for (var p=0;p<psms.length && !canceled;p++){
+      overlay.msg('Reading… (rot '+rotations[r]+'°, psm '+psms[p]+')');
+      await worker.setParameters({ tessedit_pageseg_mode: psms[p] });
+      // timeout guard
+      var timedOut=false;
+      var timer=setTimeout(function(){ timedOut=true; }, 25000);
+      try{
+        var res = await worker.recognize(cv);
+        if(timedOut) { /* skip */ } else {
+          var txt = (res&&res.data&&res.data.text)||'';
+          var lines = parseLines(txt);
+          var score = lines.length;
+          if(score>best.score){ best={text:txt, score:score}; }
+          if(score>=6){ clearTimeout(timer); await worker.terminate(); overlay.setTerminator(null); return best.text; }
+        }
+      }catch(e){ /* continue */ }
+      clearTimeout(timer);
+    }
+  }
+  try{ await worker.terminate(); }catch(e){} overlay.setTerminator(null);
+  return best.text;
+}
 
-/* State */
+/* State & timers */
 var KEY="fo76-tracker-v1";
 function load(){ try{var r=localStorage.getItem(KEY); return r?JSON.parse(r):{} }catch(e){ return {} } }
 function save(s){ try{ localStorage.setItem(KEY, JSON.stringify(s)) }catch(e){} }
@@ -275,7 +266,7 @@ function nextDaily(){ var e=new Date(); e.setHours(12,0,0,0); if(e<=new Date()) 
 function nextWeekly(){ var e=new Date(); e.setHours(12,0,0,0); var d=(2-e.getDay()+7)%7; if(d===0&&e<=new Date()) d=7; if(d>0) e.setDate(e.getDate()+d); if(e<=new Date()) e.setDate(e.getDate()+7); return e }
 function fmt(t){ var ms=t-new Date(); if(ms<=0) return "Resetting…"; var s=Math.floor(ms/1e3), d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60); var parts=[]; if(d)parts.push(d+'d'); if(h||d)parts.push(h+'h'); if(m||h||d)parts.push(m+'m'); parts.push((s%60)+'s'); return parts.join(' '); }
 
-/* Currency cards */
+/* Currency components */
 function GoldMini(){
   var st=load();
   var _1=React.useState(!!(st.gold||{}).dailyDone); var daily=_1[0], setDaily=_1[1];
@@ -306,7 +297,7 @@ function CapsMini(){
   );
 }
 
-/* Panels */
+/* Panels with Weekly import */
 function DailyPanel(props){
   if(!props.show) return null;
   var st=load();
@@ -320,33 +311,7 @@ function DailyPanel(props){
   function add(){ if(!txt.trim()) return; setItems(function(L){ return L.concat([{id:newid(),text:txt.trim(),done:false}]) }); setTxt("") }
   function toggle(i){ setItems(function(L){ return L.map(function(x){ return x.id===i?{id:x.id,text:x.text,done:!x.done}:x }) }) }
   function del(i){ setItems(function(L){ return L.filter(function(x){ return x.id!==i }) }) }
-  async function importImage(ev){
-    var f=ev.target.files && ev.target.files[0]; if(!f) return;
-    overlay.show('Preparing OCR…');
-    try{
-      var o = await ensureOCR();
-      overlay.msg('Reading…');
-      var MAX=1440;
-      function loadToCanvas(file){
-        return new Promise(function(resolve,reject){
-          var url=URL.createObjectURL(file); var img=new Image();
-          img.onload=function(){ var w=img.width,h=img.height; if(Math.max(w,h)>MAX){var s=MAX/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);} var cv=document.createElement('canvas'); cv.width=w; cv.height=h; var cx=cv.getContext('2d'); cx.drawImage(img,0,0,w,h); URL.revokeObjectURL(url); resolve(cv); };
-          img.onerror=reject; img.src=url;
-        });
-      }
-      function canvasToBlob(cv){ return new Promise(function(res){ cv.toBlob(function(b){res(b)},'image/png',0.9) }) }
-      var cv = await loadToCanvas(f);
-      var blob = await canvasToBlob(cv);
-      var res = await Tesseract.recognize(blob, 'eng', { workerPath:o.workerPath, corePath:o.corePath, langPath:o.langPath, tessedit_pageseg_mode:3, logger: function(m){ if(m.status) overlay.msg(m.status+' '+Math.round((m.progress||0)*100)+'%') } });
-      var raw = (res&&res.data&&res.data.text)||''; var lines = parseLines(raw);
-      var guess = guessChallenges(lines); overlay.hide();
-      var guessedIdx = guess.map(function(g){return lines.indexOf(g)}).filter(function(i){return i>=0});
-      review.show(lines, guessedIdx); review._target='daily';
-      document.getElementById('reviewImportDaily').onclick=function(){ var idx=review.selected(); var sel = idx.map(function(i){return lines[i]}); setItems(function(L){ return L.concat(toItems(sel)) }); review.hide(); };
-      document.getElementById('reviewImportWeekly').onclick=function(){ var idx=review.selected(); var sel = idx.map(function(i){return lines[i]}); var s=load(); s.weekly=(s.weekly||[]).concat(toItems(sel)); save(s); review.hide(); alert('Imported to Weekly'); };
-    }catch(e){ overlay.hide(); alert('OCR failed. Try again.'); }
-    ev.target.value="";
-  }
+  async function importImage(ev){ await doImport(ev, function(sel){ setItems(function(L){ return L.concat(toItems(sel)) }) }); }
   var shown = hide ? items.filter(function(x){return !x.done}) : items;
   return React.createElement('div',{className:'card'},
     React.createElement('div',{className:'head'},
@@ -389,11 +354,14 @@ function WeeklyPanel(props){
   function add(){ if(!txt.trim()) return; setItems(function(L){ return L.concat([{id:newid(),text:txt.trim(),done:false}]) }); setTxt("") }
   function toggle(i){ setItems(function(L){ return L.map(function(x){ return x.id===i?{id:x.id,text:x.text,done:!x.done}:x }) }) }
   function del(i){ setItems(function(L){ return L.filter(function(x){ return x.id!==i }) }) }
+  async function importImage(ev){ await doImport(ev, function(sel){ setItems(function(L){ return L.concat(toItems(sel)) }) }); }
   var shown = hide ? items.filter(function(x){return !x.done}) : items;
   return React.createElement('div',{className:'card'},
     React.createElement('div',{className:'head'},
       React.createElement('div',{className:'title'}, React.createElement('img',{src:'./arts/gold-d.svg',alt:'',style:{width:18,height:18}}), React.createElement('h3',null,'Weekly Challenges')),
       React.createElement('div',{className:'right'},
+        React.createElement('label',{className:'btn',style:{display: props.compact?'none':'inline-flex',alignItems:'center',gap:6,cursor:'pointer'}},
+          React.createElement('input',{type:'file',accept:'image/*',onChange:importImage,style:{display:'none'}}),'Import image'),
         React.createElement('label',{className:'switch'}, React.createElement('input',{className:'chk chk--sm',type:'checkbox',checked:hide,onChange:function(e){setHide(e.target.checked)}}),' Hide completed')
       )
     ),
@@ -414,6 +382,28 @@ function WeeklyPanel(props){
       )
     )
   );
+}
+
+/* Shared import flow */
+async function doImport(ev, addFn){
+  var f=ev.target.files && ev.target.files[0]; if(!f) return;
+  var terminator=null; overlay.show('Preparing OCR…', function(){ if(terminator) terminator(); });
+  try{
+    var o = await ensureOCR();
+    // run worker with retries
+    var text = await (async function(){
+      var out=''; var canceled=false;
+      out = await recognizeWithRetries(f, o);
+      return out;
+    })();
+    overlay.hide();
+    var lines = parseLines(text); var guess = guessChallenges(lines);
+    var guessedIdx = guess.map(function(g){return lines.indexOf(g)}).filter(function(i){return i>=0});
+    review.show(lines, guessedIdx);
+    document.getElementById('reviewImportDaily').onclick=function(){ var idx=review.selected(); var sel = idx.map(function(i){return lines[i]}); var s=load(); s.daily=(s.daily||[]).concat(toItems(sel)); save(s); alert('Imported to Daily'); review.hide(); };
+    document.getElementById('reviewImportWeekly').onclick=function(){ var idx=review.selected(); var sel = idx.map(function(i){return lines[i]}); var s=load(); s.weekly=(s.weekly||[]).concat(toItems(sel)); save(s); alert('Imported to Weekly'); review.hide(); };
+  }catch(e){ overlay.hide(); alert('OCR failed. Try again.'); }
+  ev.target.value="";
 }
 
 /* Header & Tabs */
@@ -448,7 +438,6 @@ function App(){
     setupWear(); setupFooter();
     document.getElementById('tabColors').onclick=function(){ this.classList.add('active'); document.getElementById('tabWear').classList.remove('active'); document.getElementById('colorsPanel').style.display='block'; document.getElementById('wearPanel').style.display='none'; };
     document.getElementById('tabWear').onclick=function(){ this.classList.add('active'); document.getElementById('tabColors').classList.remove('active'); document.getElementById('colorsPanel').style.display='none'; document.getElementById('wearPanel').style.display='block'; };
-    // Pip toggle
     var pip=document.getElementById('pipToggle'); pip.addEventListener('change',function(){ applyPipBoy(pip.checked); });
     if(localStorage.getItem('fo76-pip')==='1'){ pip.checked=true; applyPipBoy(true); }
   },[]);
@@ -467,11 +456,7 @@ function closeTheme(){ document.getElementById('themeOverlay').classList.remove(
 var root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(React.StrictMode,null,React.createElement(App)));
 
-// SW
-if('serviceWorker' in navigator){ window.addEventListener('load',function(){navigator.serviceWorker.register('./sw-202.js')}); }
-
-// Version text
-document.getElementById('verSlot').textContent='FO76 Tracker v' + VERSION;
+if('serviceWorker' in navigator){ window.addEventListener('load',function(){navigator.serviceWorker.register('./sw-203.js')}); }
 </script>
 </body>
 </html>
