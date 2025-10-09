@@ -46,9 +46,9 @@
   </div>
 </div>
 
-<!-- Info / Settings overlay -->
+<!-- Info / Settings overlay (scrollable) -->
 <div class="overlay" id="infoOverlay">
-  <div class="box">
+  <div class="box scroll">
     <h3>FO76 Tracker — Info</h3>
     <ul>
       <li><b>Reset time:</b> Fallout global reset at <b>12:00 UTC</b> (7 AM ET / 4 AM PT).</li>
@@ -57,27 +57,6 @@
       <li><b>Install:</b> <button class="btn" id="installBtn">Install</button> • <b>Updates:</b> <button class="btn" id="refreshInInfo">⟳ Refresh</button></li>
       <li><b>Version:</b> <span id="verInInfo"></span></li>
     </ul>
-
-    <hr>
-    <h4>Appearance</h4>
-    <div class="row wrap">
-      <button class="btn" id="presetGreen">Pip-Boy Green</button>
-      <button class="btn" id="presetAmber">Amber</button>
-      <button class="btn" id="presetIce">Ice Blue</button>
-      <button class="btn" id="presetWhite">White Phosphor</button>
-    </div>
-    <div class="row wrap" style="margin-top:8px">
-      <label class="btn">
-        Theme color <input type="color" id="themeColor" value="#4cff5a" style="margin-left:8px">
-      </label>
-      <label class="btn">
-        Wear <input type="range" id="wearLevel" min="0" max="100" value="20" style="margin-left:8px">
-      </label>
-      <label class="btn">
-        <input type="checkbox" id="pipBoyMono" class="chk sm"> Pip-Boy Mono
-      </label>
-    </div>
-
     <hr>
     <h4>Tools</h4>
     <div class="row wrap">
@@ -86,14 +65,42 @@
       <button class="btn" id="exportData">Export</button>
       <button class="btn" id="importData">Import</button>
     </div>
-
-    <p class="muted" style="margin-top:10px">Unofficial fan project. Not affiliated with or endorsed by Bethesda Softworks.</p>
+    <p class="muted" style="margin-top:10px">
+      FO76 Tracker is an unofficial fan project for <b>Fallout 76</b>.
+      It is not affiliated with, endorsed by, or supported by Bethesda Softworks or ZeniMax Media.
+      &copy; Bethesda Softworks LLC. All Rights Reserved. Fallout and related marks are trademarks of ZeniMax Media Inc.
+    </p>
     <div class="right"><button class="btn" id="infoClose">Close</button></div>
   </div>
 </div>
 
+<!-- Theme overlay (main screen control) -->
+<div class="overlay" id="themeOverlay">
+  <div class="box">
+    <h3>Theme</h3>
+    <p class="muted">Pick a color and a style preset. Changes save automatically.</p>
+    <div class="wheel">
+      <button class="swatch" data-acc="#b9ff7a" title="Green"></button>
+      <button class="swatch" data-acc="#ffd46a" title="Amber"></button>
+      <button class="swatch" data-acc="#9fe9ff" title="Ice Blue"></button>
+      <button class="swatch" data-acc="#eaf6ff" title="White"></button>
+      <button class="swatch" data-acc="#ffa2c8" title="Pink"></button>
+      <button class="swatch" data-acc="#c8a6ff" title="Violet"></button>
+    </div>
+    <div class="wheel wheel-style">
+      <label class="chip"><input type="radio" name="stylePreset" value="clean" checked> Clean</label>
+      <label class="chip"><input type="radio" name="stylePreset" value="pipboy"> Pip-Boy Distortion</label>
+    </div>
+    <div class="row wrap" style="margin-top:8px">
+      <label class="btn"> Custom <input type="color" id="themeColor" value="#b9ff7a" style="margin-left:8px"></label>
+      <label class="btn"> Wear <input type="range" id="wearLevel" min="0" max="100" value="20" style="margin-left:8px"></label>
+      <button class="btn" id="themeClose">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
-/** v1.9.4 — FO reset (12:00 UTC) + robust OCR + Theme controls **/
+/** v1.9.4 — warm palette, improved tabs, click-to-check, robust OCR **/
 
 // ---------- Utilities ----------
 function $(id){ return document.getElementById(id); }
@@ -198,7 +205,6 @@ const OCR_MIRRORS = {
 };
 async function ensureOCR(){
   const out={ workerPath:'./ocr/worker.min.js', corePath:'./ocr/tesseract-core.wasm.js', langPath:'./ocr' };
-  // If served from file:// the local fetch may fail—skip straight to mirrors.
   const isFile = location.protocol === 'file:';
   const ok = isFile ? [false,false,false] : await Promise.all([
     fetch(out.workerPath).then(r=>r.ok).catch(()=>false),
@@ -234,7 +240,6 @@ function prepCanvas(img, rotate){
     cx.drawImage(img,0,0,cv.width,cv.height);
   }
   cx.restore();
-  // grayscale + contrast
   const id=cx.getImageData(0,0,cv.width,cv.height); const d=id.data;
   for(let i=0;i<d.length;i+=4){
     const y=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114);
@@ -295,14 +300,16 @@ async function recognize(file, o, aggressive){
   }
 }
 
-// ---------- Theme system ----------
+// ---------- Theme system (warmer presets) ----------
 const PRESETS = {
-  green: { acc: '#4cff5a', text:'#c7ffb0', muted:'#7acb79', bg:'#031207' },
-  amber: { acc: '#ffb648', text:'#ffe8c4', muted:'#ffd599', bg:'#1a0e03' },
-  ice:   { acc: '#7fe5ff', text:'#d2f6ff', muted:'#a2eaff', bg:'#031018' },
-  white: { acc: '#dcf0ff', text:'#f2fbff', muted:'#bcd4e1', bg:'#0b1116' },
+  green: { acc:'#b9ff7a', text:'#e9ffdf', muted:'#b8f4b7', bg:'#0d1a12' },
+  amber: { acc:'#ffd46a', text:'#fff3d6', muted:'#ffe2a4', bg:'#1a1406' },
+  ice:   { acc:'#9fe9ff', text:'#e8fbff', muted:'#c9f3ff', bg:'#0b151b' },
+  white: { acc:'#eaf6ff', text:'#ffffff', muted:'#cfdfea', bg:'#0b1116' },
+  pink:  { acc:'#ffa2c8', text:'#ffe3f0', muted:'#ffc5df', bg:'#170d14' },
+  violet:{ acc:'#c8a6ff', text:'#efe8ff', muted:'#d9c9ff', bg:'#120f1a' },
 };
-function applyTheme(palette, wear=20, mono=false){
+function applyTheme(palette, wear=20, style='clean'){
   const r = document.documentElement.style;
   const {acc,text,muted,bg} = palette;
   r.setProperty('--acc', acc);
@@ -313,14 +320,13 @@ function applyTheme(palette, wear=20, mono=false){
   const op = (wear/100)*.3;           // 0–0.3
   r.setProperty('--wearBlur', blur+'px');
   r.setProperty('--wearOpacity', op.toFixed(2));
-  document.body.classList.toggle('crt', wear>0);
-  document.body.classList.toggle('pipmono', mono);
+  document.body.classList.toggle('crt', style==='pipboy' || wear>0);
 }
-const THEME_KEY='fo76-theme-v1';
-const themeState = load(THEME_KEY, { preset:'green', wear:20, mono:false, color:null });
+const THEME_KEY='fo76-theme-v2';
+const themeState = load(THEME_KEY, { preset:'green', wear:20, style:'clean', color:null });
 function currentPalette(){ return themeState.color || PRESETS[themeState.preset] }
 function saveTheme(){ save(THEME_KEY, themeState); }
-applyTheme(currentPalette(), themeState.wear, themeState.mono);
+applyTheme(currentPalette(), themeState.wear, themeState.style);
 
 // ---------- App ----------
 const KEY='fo76-tracker-v1';
@@ -329,11 +335,11 @@ const VERSION='1.9.4';
 function Header(){
   return React.createElement('header',{className:'header'},
     React.createElement('div',{className:'left'},
-      React.createElement('button',{className:'btn', onClick:()=>$('infoOverlay').classList.add('show')},'Info')
+      React.createElement('button',{className:'btn', onClick:()=>$('infoOverlay').classList.add('show')},'Info'),
+      React.createElement('button',{className:'btn', onClick:()=>$('themeOverlay').classList.add('show')},'Theme')
     ),
     React.createElement('div',{className:'right'},
       React.createElement('div',{className:'mini'},
-        React.createElement('img',{src:'./arts/gold-bars.svg',alt:'',className:'art'}),
         React.createElement('div',null,
           React.createElement('div',{className:'title'},'Gold'),
           React.createElement('label',null, React.createElement('input',{type:'checkbox',className:'chk sm', id:'gold-d'}),' Daily'),
@@ -341,7 +347,6 @@ function Header(){
         )
       ),
       React.createElement('div',{className:'mini'},
-        React.createElement('img',{src:'./arts/cap-red.svg',alt:'',className:'art'}),
         React.createElement('div',null,
           React.createElement('div',{className:'title'},'Caps'),
           React.createElement('label',null, React.createElement('input',{type:'checkbox',className:'chk sm', id:'caps-d'}),' Daily')
@@ -360,7 +365,7 @@ function FocusBar(props){
   );
 }
 
-function ListPanel({kind, compact}){
+function ListPanel({kind, compact, showImport}){
   const state = load(KEY, {});
   const key = kind.toLowerCase();
   const defDaily = [{id:newid(), text:'Complete a Daily Challenge', done:false}];
@@ -429,7 +434,7 @@ function ListPanel({kind, compact}){
     React.createElement('div',{className:'head'},
       React.createElement('div',{className:'title'}, kind+' Challenges'),
       React.createElement('div',{className:'right'},
-        !compact && React.createElement('label',{className:'btn filebtn'},
+        showImport && React.createElement('label',{className:'btn filebtn'},
           React.createElement('input',{type:'file',accept:'image/*',onChange:importImage,style:{display:'none'}}),
           'Import image'
         ),
@@ -445,7 +450,10 @@ function ListPanel({kind, compact}){
       ),
       React.createElement('div',{className:'list'},
         shown.map(it=>React.createElement('div',{key:it.id,className:'item '+(it.done?'done':''),onClick:()=>toggle(it.id)},
-          React.createElement('input',{type:'checkbox',className:'chk',checked:it.done,onChange:()=>toggle(it.id)}),
+          React.createElement('input',{
+            type:'checkbox', className:'chk', checked:it.done,
+            onClick:(e)=>e.stopPropagation(), readOnly:true
+          }),
           React.createElement('div',{className:'label'},it.text),
           !compact && React.createElement('button',{className:'icon',onClick:(e)=>{e.stopPropagation();del(it.id)}},'🗑️')
         )),
@@ -472,39 +480,61 @@ function App(){
   $('ocrAgg').checked = !!load(AGG_KEY, false);
   $('ocrAgg').onchange = (e)=> save(AGG_KEY, e.target.checked);
 
-  // Install prompt (Android)
-  let deferredPrompt=null;
-  window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt=e; });
-  $('installBtn').onclick = ()=>{ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; } else { alert('Use your browser menu → Install App'); } };
-
-  // Theme hookups
+  // Theme overlay
+  $('themeClose').onclick = ()=>$('themeOverlay').classList.remove('show');
   $('themeColor').value = (currentPalette().acc);
   $('wearLevel').value = themeState.wear;
-  $('pipBoyMono').checked = themeState.mono;
-  $('presetGreen').onclick = ()=>{ themeState.preset='green'; themeState.color=null; applyTheme(PRESETS.green, themeState.wear, themeState.mono); saveTheme(); };
-  $('presetAmber').onclick = ()=>{ themeState.preset='amber'; themeState.color=null; applyTheme(PRESETS.amber, themeState.wear, themeState.mono); saveTheme(); };
-  $('presetIce').onclick   = ()=>{ themeState.preset='ice'; themeState.color=null; applyTheme(PRESETS.ice, themeState.wear, themeState.mono); saveTheme(); };
-  $('presetWhite').onclick = ()=>{ themeState.preset='white'; themeState.color=null; applyTheme(PRESETS.white, themeState.wear, themeState.mono); saveTheme(); };
-  $('themeColor').oninput  = (e)=>{ const acc=e.target.value; themeState.color={...PRESETS[themeState.preset], acc}; applyTheme(themeState.color, themeState.wear, themeState.mono); saveTheme(); };
-  $('wearLevel').oninput   = (e)=>{ themeState.wear=+e.target.value; applyTheme(currentPalette(), themeState.wear, themeState.mono); saveTheme(); };
-  $('pipBoyMono').onchange = (e)=>{ themeState.mono=e.target.checked; applyTheme(currentPalette(), themeState.wear, themeState.mono); saveTheme(); };
+  document.querySelectorAll('.swatch').forEach(btn=>{
+    btn.style.setProperty('--dot', btn.dataset.acc);
+    btn.onclick = ()=>{
+      themeState.color = {...currentPalette(), acc: btn.dataset.acc};
+      applyTheme(themeState.color, themeState.wear, themeState.style);
+      $('themeColor').value = btn.dataset.acc;
+      saveTheme();
+    };
+  });
+  $('themeColor').oninput = (e)=>{
+    themeState.color = {...currentPalette(), acc: e.target.value};
+    applyTheme(themeState.color, themeState.wear, themeState.style);
+    saveTheme();
+  };
+  $('wearLevel').oninput = (e)=>{
+    themeState.wear = +e.target.value;
+    applyTheme(currentPalette(), themeState.wear, themeState.style);
+    saveTheme();
+  };
+  document.querySelectorAll('input[name="stylePreset"]').forEach(r=>{
+    if(r.value === themeState.style) r.checked = true;
+    r.onchange = ()=>{
+      if(r.checked){
+        themeState.style = r.value;
+        applyTheme(currentPalette(), themeState.wear, themeState.style);
+        saveTheme();
+      }
+    };
+  });
 
-  // Tools
-  $('resetDaily').onclick = ()=>{ const s=load(KEY,{}); s.daily=(s.daily||[]).map(x=>({...x,done:false})); save(KEY,s); alert('Dailies reset'); };
-  $('resetWeekly').onclick= ()=>{ const s=load(KEY,{}); s.weekly=(s.weekly||[]).map(x=>({...x,done:false})); save(KEY,s); alert('Weeklies reset'); };
-  $('exportData').onclick  = async ()=>{ const s=load(KEY,{}); const blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'}); await navigator.clipboard.writeText(await blob.text()); alert('Data copied to clipboard.'); };
-  $('importData').onclick  = async ()=>{ const txt = prompt('Paste JSON'); if(!txt) return; try{ const data=JSON.parse(txt); const s=load(KEY,{}); save(KEY,{...s,...data}); alert('Imported. Reloading…'); location.reload(); } catch{ alert('Invalid JSON'); } };
+  // Cancel overlays via Esc
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ overlay.cancel(); $('themeOverlay').classList.remove('show'); $('infoOverlay').classList.remove('show'); }
+  });
 
-  // Cancel OCR via Esc
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape') overlay.cancel(); });
-
+  // Panels per tab
   return React.createElement('div',{className:'container'},
     React.createElement(Header,null),
     React.createElement(FocusBar,{focus,setFocus}),
-    React.createElement('div',{className: focus==='All' ? 'twocol' : ''},
-      React.createElement(ListPanel,{kind:'Daily', compact: focus==='All' && true, key:'daily'}),
-      React.createElement(ListPanel,{kind:'Weekly', compact: focus==='All' && true, key:'weekly'})
-    )
+    (function(){
+      if(focus==='All'){
+        return React.createElement('div',{className:'twocol'},
+          React.createElement(ListPanel,{kind:'Daily',  compact:true,  showImport:false, key:'daily'}),
+          React.createElement(ListPanel,{kind:'Weekly', compact:true,  showImport:false, key:'weekly'})
+        );
+      }else if(focus==='Daily'){
+        return React.createElement(ListPanel,{kind:'Daily', compact:false, showImport:true, key:'daily'});
+      }else{
+        return React.createElement(ListPanel,{kind:'Weekly', compact:false, showImport:true, key:'weekly'});
+      }
+    })()
   );
 }
 
@@ -512,7 +542,7 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(React.StrictMode,null,React.createElement(App)));
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw-208.js'));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw-209.js'));
 }
 </script>
 </body>
