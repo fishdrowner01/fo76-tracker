@@ -46,24 +46,54 @@
   </div>
 </div>
 
-<!-- Theme & Info (concise) -->
+<!-- Info / Settings overlay -->
 <div class="overlay" id="infoOverlay">
   <div class="box">
     <h3>FO76 Tracker — Info</h3>
     <ul>
       <li><b>Reset time:</b> Fallout global reset at <b>12:00 UTC</b> (7 AM ET / 4 AM PT).</li>
       <li><b>Import image:</b> upload a screenshot → review → import to Daily/Weekly.</li>
-      <li><b>OCR:</b> Optical Character Recognition (Aggressive Mode tries extra passes).</li>
-      <li><b>Install:</b> <button class="btn" id="installBtn">Install</button> (iOS: Share → Add to Home Screen).</li>
-      <li><b>Version:</b> <span id="verInInfo"></span> • <button class="btn" id="refreshInInfo">⟳ Refresh</button></li>
+      <li><b>OCR:</b> Optical Character Recognition. <label class="btn"><input type="checkbox" id="ocrAgg" class="chk sm"> Aggressive OCR</label></li>
+      <li><b>Install:</b> <button class="btn" id="installBtn">Install</button> • <b>Updates:</b> <button class="btn" id="refreshInInfo">⟳ Refresh</button></li>
+      <li><b>Version:</b> <span id="verInInfo"></span></li>
     </ul>
-    <p class="muted">Unofficial fan project. Not affiliated with or endorsed by Bethesda Softworks.</p>
+
+    <hr>
+    <h4>Appearance</h4>
+    <div class="row wrap">
+      <button class="btn" id="presetGreen">Pip-Boy Green</button>
+      <button class="btn" id="presetAmber">Amber</button>
+      <button class="btn" id="presetIce">Ice Blue</button>
+      <button class="btn" id="presetWhite">White Phosphor</button>
+    </div>
+    <div class="row wrap" style="margin-top:8px">
+      <label class="btn">
+        Theme color <input type="color" id="themeColor" value="#4cff5a" style="margin-left:8px">
+      </label>
+      <label class="btn">
+        Wear <input type="range" id="wearLevel" min="0" max="100" value="20" style="margin-left:8px">
+      </label>
+      <label class="btn">
+        <input type="checkbox" id="pipBoyMono" class="chk sm"> Pip-Boy Mono
+      </label>
+    </div>
+
+    <hr>
+    <h4>Tools</h4>
+    <div class="row wrap">
+      <button class="btn" id="resetDaily">Reset Dailies</button>
+      <button class="btn" id="resetWeekly">Reset Weeklies</button>
+      <button class="btn" id="exportData">Export</button>
+      <button class="btn" id="importData">Import</button>
+    </div>
+
+    <p class="muted" style="margin-top:10px">Unofficial fan project. Not affiliated with or endorsed by Bethesda Softworks.</p>
     <div class="right"><button class="btn" id="infoClose">Close</button></div>
   </div>
 </div>
 
 <script>
-/** v1.9.4 — FO reset (12:00 UTC) + robust OCR + Weekly import **/
+/** v1.9.4 — FO reset (12:00 UTC) + robust OCR + Theme controls **/
 
 // ---------- Utilities ----------
 function $(id){ return document.getElementById(id); }
@@ -99,7 +129,7 @@ function msFmt(t){
   return parts.join(' ');
 }
 
-// ---------- OCR helpers ----------
+// ---------- OCR helpers (hardened) ----------
 const overlay = (() => {
   let canceled=false, term=null;
   const el = $('ocrOverlay'); const status=$('ocrStatus');
@@ -116,7 +146,7 @@ const review = (() => {
   $('reviewSelectAll').onclick = ()=> body.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=true);
   $('reviewSelectNone').onclick = ()=> body.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);
   $('reviewCopy').onclick = async ()=> {
-    const text=Array.from(body.querySelectorAll('label div')).map(d=>d.textContent).join('\n');
+    const text=Array.from(body.querySelectorAll('label div')).map(d=>d.textContent).join('\\n');
     try{ await navigator.clipboard.writeText(text) }catch{}
   };
   $('reviewClose').onclick = ()=> el.classList.remove('show');
@@ -144,20 +174,20 @@ const review = (() => {
 })();
 
 function parseLines(raw){
-  return raw.split(/\r?\n/).map(s=>s.replace(/[•·►→]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+  return raw.split(/\\r?\\n/).map(s=>s.replace(/[•·►→]/g,' ').replace(/\\s+/g,' ').trim()).filter(Boolean);
 }
 function guessChallenges(lines){
   const rx=/(complete|craft|kill|collect|build|scrap|discover|photo|event|workshop|legendary|ops|rank|score|nuke|daily|weekly)/i;
-  return lines.map((s,i)=> rx.test(s)||/\b\d{1,3}\b/.test(s) ? i : -1).filter(i=>i>=0);
+  return lines.map((s,i)=> rx.test(s)||/\\b\\d{1,3}\\b/.test(s) ? i : -1).filter(i=>i>=0);
 }
 function looksDone(s){
   const t=s.trim().toLowerCase();
-  return /^(✔|✓|✅|!|★)\s*/.test(t) || /\s*(✔|✓|✅|!|★)$/.test(t) || /\b(completed?|claimed?|done|finished)\b/.test(t);
+  return /^(✔|✓|✅|!|★)\\s*/.test(t) || /\\s*(✔|✓|✅|!|★)$/.test(t) || /\\b(completed?|claimed?|done|finished)\\b/.test(t);
 }
 function toItems(lines){
   return lines.map(txt=>({
     id: newid(),
-    text: txt.replace(/^\s*(✔|✓|✅|!|\||i|★)\s*/i,'').replace(/\s*(✔|✓|✅|!|\||i|★)\s*$/i,'').trim(),
+    text: txt.replace(/^\\s*(✔|✓|✅|!|\\||i|★)\\s*/i,'').replace(/\\s*(✔|✓|✅|!|\\||i|★)\\s*$/i,'').trim(),
     done: looksDone(txt)
   }));
 }
@@ -168,7 +198,9 @@ const OCR_MIRRORS = {
 };
 async function ensureOCR(){
   const out={ workerPath:'./ocr/worker.min.js', corePath:'./ocr/tesseract-core.wasm.js', langPath:'./ocr' };
-  const ok = await Promise.all([
+  // If served from file:// the local fetch may fail—skip straight to mirrors.
+  const isFile = location.protocol === 'file:';
+  const ok = isFile ? [false,false,false] : await Promise.all([
     fetch(out.workerPath).then(r=>r.ok).catch(()=>false),
     fetch(out.corePath).then(r=>r.ok).catch(()=>false),
     fetch(out.langPath+'/eng.traineddata.gz').then(r=>r.ok).catch(()=>false),
@@ -183,11 +215,11 @@ async function ensureOCR(){
   }
   out.workerPath = await pull(OCR_MIRRORS.worker,'worker');
   out.corePath   = await pull(OCR_MIRRORS.core,'core');
-  out.langPath   = (await pull(OCR_MIRRORS.lang,'lang')).replace(/eng\.traineddata\.gz$/,'');
+  out.langPath   = (await pull(OCR_MIRRORS.lang,'lang')).replace(/eng\\.traineddata\\.gz$/,'');
   return out;
 }
 function prepCanvas(img, rotate){
-  const MAX=1600;
+  const MAX=1200;
   let w=img.width, h=img.height;
   if(rotate%180!==0){ [w,h]=[h,w]; }
   let s=1, mx=Math.max(w,h); if(mx>MAX) s=MAX/mx;
@@ -202,6 +234,7 @@ function prepCanvas(img, rotate){
     cx.drawImage(img,0,0,cv.width,cv.height);
   }
   cx.restore();
+  // grayscale + contrast
   const id=cx.getImageData(0,0,cv.width,cv.height); const d=id.data;
   for(let i=0;i<d.length;i+=4){
     const y=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114);
@@ -216,38 +249,78 @@ async function recognize(file, o, aggressive){
   const url=URL.createObjectURL(file); const img=new Image();
   await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=url; });
   URL.revokeObjectURL(url);
+
   const rotations = aggressive ? [0,90,180,270] : [0,90];
   const psms = aggressive ? [6,4,3] : [6,3];
+
+  const watchdogGlobal = setTimeout(()=>overlay.msg('Taking longer than usual… still working'), 8000);
+  const deadline = Date.now() + 45000;
+
   const worker = await Tesseract.createWorker({
     workerPath:o.workerPath, corePath:o.corePath, langPath:o.langPath,
     logger: m=>{ if(m.status) overlay.msg(m.status+' '+Math.round((m.progress||0)*100)+'%'); }
   });
   overlay.setTerminator(async ()=>{ try{ await worker.terminate(); }catch{} });
-  await worker.load(); await worker.loadLanguage('eng'); await worker.initialize('eng');
-  let best={text:'', score:0};
-  for(const r of rotations){
-    const cv=prepCanvas(img, r);
-    for(const p of psms){
-      overlay.msg(`Reading… (rot ${r}°, psm ${p})`);
-      await worker.setParameters({ tessedit_pageseg_mode: p });
-      let timedOut=false; const timer=setTimeout(()=>{ timedOut=true; }, 25000);
-      try{
-        const res = await worker.recognize(cv);
-        if(!timedOut){
-          const txt=(res&&res.data&&res.data.text)||'';
-          const lines=parseLines(txt);
-          const score=lines.length;
-          if(score>best.score) best={text:txt, score};
-          if(score>=6){ clearTimeout(timer); await worker.terminate(); overlay.setTerminator(null); return best.text; }
-        }
-      }catch{}
-      clearTimeout(timer);
+
+  try{
+    await worker.load(); await worker.loadLanguage('eng'); await worker.initialize('eng');
+
+    let best={text:'', score:0};
+    for(const r of rotations){
+      if(Date.now()>deadline) break;
+      const cv=prepCanvas(img, r);
+      for(const p of psms){
+        if(Date.now()>deadline) break;
+        overlay.msg(`Reading… (rot ${r}°, psm ${p})`);
+        await worker.setParameters({ tessedit_pageseg_mode: p });
+        let timedOut=false; const passTimer=setTimeout(()=>{ timedOut=true; }, 25000);
+        try{
+          const res = await worker.recognize(cv);
+          if(!timedOut){
+            const txt=(res&&res.data&&res.data.text)||'';
+            const lines=parseLines(txt);
+            const score=lines.length;
+            if(score>best.score) best={text:txt, score};
+            if(score>=6){ clearTimeout(passTimer); clearTimeout(watchdogGlobal); return best.text; }
+          }
+        }catch{}
+        clearTimeout(passTimer);
+      }
     }
+    clearTimeout(watchdogGlobal);
+    return best.text;
+  } finally{
+    try{ await worker.terminate(); }catch{}
+    overlay.setTerminator(null);
   }
-  try{ await worker.terminate(); }catch{}
-  overlay.setTerminator(null);
-  return best.text;
 }
+
+// ---------- Theme system ----------
+const PRESETS = {
+  green: { acc: '#4cff5a', text:'#c7ffb0', muted:'#7acb79', bg:'#031207' },
+  amber: { acc: '#ffb648', text:'#ffe8c4', muted:'#ffd599', bg:'#1a0e03' },
+  ice:   { acc: '#7fe5ff', text:'#d2f6ff', muted:'#a2eaff', bg:'#031018' },
+  white: { acc: '#dcf0ff', text:'#f2fbff', muted:'#bcd4e1', bg:'#0b1116' },
+};
+function applyTheme(palette, wear=20, mono=false){
+  const r = document.documentElement.style;
+  const {acc,text,muted,bg} = palette;
+  r.setProperty('--acc', acc);
+  r.setProperty('--text', text);
+  r.setProperty('--muted', muted);
+  r.setProperty('--bg', bg);
+  const blur = Math.round(wear/25)+1; // 1–5px
+  const op = (wear/100)*.3;           // 0–0.3
+  r.setProperty('--wearBlur', blur+'px');
+  r.setProperty('--wearOpacity', op.toFixed(2));
+  document.body.classList.toggle('crt', wear>0);
+  document.body.classList.toggle('pipmono', mono);
+}
+const THEME_KEY='fo76-theme-v1';
+const themeState = load(THEME_KEY, { preset:'green', wear:20, mono:false, color:null });
+function currentPalette(){ return themeState.color || PRESETS[themeState.preset] }
+function saveTheme(){ save(THEME_KEY, themeState); }
+applyTheme(currentPalette(), themeState.wear, themeState.mono);
 
 // ---------- App ----------
 const KEY='fo76-tracker-v1';
@@ -301,6 +374,7 @@ function ListPanel({kind, compact}){
     const s=load(KEY,{}); s[key]=items; s[key+'HideDone']=hide; save(KEY,s);
   },[items,hide]);
 
+  // Reset logic: tied to 12:00 UTC
   React.useEffect(()=>{
     const tick = setInterval(()=>{
       const n=new Date();
@@ -386,17 +460,42 @@ function App(){
   const [focus,setFocus] = React.useState(st.focus || 'All');
   React.useEffect(()=>{ const s=load(KEY,{}); s.focus=focus; save(KEY,s); },[focus]);
 
+  // Info
   $('infoClose').onclick = ()=>$('infoOverlay').classList.remove('show');
   $('refreshInInfo').onclick = async ()=>{
     const reg = await navigator.serviceWorker.getRegistration(); if(reg){ await reg.update(); }
     location.href=location.pathname+'?r='+Date.now();
   };
   $('verInInfo').textContent = 'v'+VERSION;
+  // OCR aggressive toggle
+  const AGG_KEY='fo76-agg';
+  $('ocrAgg').checked = !!load(AGG_KEY, false);
+  $('ocrAgg').onchange = (e)=> save(AGG_KEY, e.target.checked);
 
+  // Install prompt (Android)
   let deferredPrompt=null;
   window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt=e; });
   $('installBtn').onclick = ()=>{ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; } else { alert('Use your browser menu → Install App'); } };
 
+  // Theme hookups
+  $('themeColor').value = (currentPalette().acc);
+  $('wearLevel').value = themeState.wear;
+  $('pipBoyMono').checked = themeState.mono;
+  $('presetGreen').onclick = ()=>{ themeState.preset='green'; themeState.color=null; applyTheme(PRESETS.green, themeState.wear, themeState.mono); saveTheme(); };
+  $('presetAmber').onclick = ()=>{ themeState.preset='amber'; themeState.color=null; applyTheme(PRESETS.amber, themeState.wear, themeState.mono); saveTheme(); };
+  $('presetIce').onclick   = ()=>{ themeState.preset='ice'; themeState.color=null; applyTheme(PRESETS.ice, themeState.wear, themeState.mono); saveTheme(); };
+  $('presetWhite').onclick = ()=>{ themeState.preset='white'; themeState.color=null; applyTheme(PRESETS.white, themeState.wear, themeState.mono); saveTheme(); };
+  $('themeColor').oninput  = (e)=>{ const acc=e.target.value; themeState.color={...PRESETS[themeState.preset], acc}; applyTheme(themeState.color, themeState.wear, themeState.mono); saveTheme(); };
+  $('wearLevel').oninput   = (e)=>{ themeState.wear=+e.target.value; applyTheme(currentPalette(), themeState.wear, themeState.mono); saveTheme(); };
+  $('pipBoyMono').onchange = (e)=>{ themeState.mono=e.target.checked; applyTheme(currentPalette(), themeState.wear, themeState.mono); saveTheme(); };
+
+  // Tools
+  $('resetDaily').onclick = ()=>{ const s=load(KEY,{}); s.daily=(s.daily||[]).map(x=>({...x,done:false})); save(KEY,s); alert('Dailies reset'); };
+  $('resetWeekly').onclick= ()=>{ const s=load(KEY,{}); s.weekly=(s.weekly||[]).map(x=>({...x,done:false})); save(KEY,s); alert('Weeklies reset'); };
+  $('exportData').onclick  = async ()=>{ const s=load(KEY,{}); const blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'}); await navigator.clipboard.writeText(await blob.text()); alert('Data copied to clipboard.'); };
+  $('importData').onclick  = async ()=>{ const txt = prompt('Paste JSON'); if(!txt) return; try{ const data=JSON.parse(txt); const s=load(KEY,{}); save(KEY,{...s,...data}); alert('Imported. Reloading…'); location.reload(); } catch{ alert('Invalid JSON'); } };
+
+  // Cancel OCR via Esc
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') overlay.cancel(); });
 
   return React.createElement('div',{className:'container'},

@@ -38,10 +38,10 @@ body{margin:0;background:linear-gradient(180deg,#05160b,#072313);color:var(--tex
 .chk{appearance:none;width:24px;height:24px;border-radius:8px;border:1px solid var(--border);background:radial-gradient(ellipse at 50% 55%, rgba(255,255,255,0.07), rgba(0,0,0,0) 60%), #1b2a1f;display:inline-grid;place-content:center;cursor:pointer;transition:.15s}
 .chk.sm{width:20px;height:20px;border-radius:6px}
 .chk:checked{background:radial-gradient(ellipse at 50% 55%, rgba(255,255,255,0.10), rgba(0,0,0,0) 60%), #0b1510}
-.chk:checked::after{content:"";width:16px;height:16px;mask:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"white\" d=\"M8.2 17.4c-.35.35-.9.35-1.25 0l-3.9-3.9c-.4-.4-.4-1.05 0-1.45l1.25-1.25c.4-.4 1.05-.4 1.45 0l1.85 1.85c.33.33.86.33 1.19 0L18 3.9c.4-.4 1.05-.4 1.45 0l1.25 1.25c.4.4.4 1.05 0 1.45L8.2 17.4Z\"/></svg>') center / contain no-repeat; background:#f0fff2}
+.chk:checked::after{content:"";width:16px;height:16px;mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M8.2 17.4c-.35.35-.9.35-1.25 0l-3.9-3.9c-.4-.4-.4-1.05 0-1.45l1.25-1.25c.4-.4 1.05-.4 1.45 0l1.85 1.85c.33.33.86.33 1.19 0L18 3.9c.4-.4 1.05-.4 1.45 0l1.25 1.25c.4.4.4 1.05 0 1.45L8.2 17.4Z"/></svg>') center / contain no-repeat; background:#f0fff2}
 
 .muted{color:var(--muted)}
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(var(--wearBlur, 2px));display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}
 .overlay.show{display:flex}
 .box{background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:700px;width:100%;padding:18px}
 .row{display:flex;gap:8px;justify-content:center;margin-top:10px}
@@ -50,3 +50,9 @@ body{margin:0;background:linear-gradient(180deg,#05160b,#072313);color:var(--tex
 .review-body{max-height:50vh;overflow:auto;border:1px solid var(--border);border-radius:12px;padding:8px;background:var(--panel2)}
 .review-row{display:flex;align-items:center;gap:10px;padding:6px 8px}
 .right{text-align:right}
+/* CRT wear overlay */
+body.crt::before{
+  content:""; position:fixed; inset:0; pointer-events:none;
+  background-image: linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px);
+  background-size: 100% 3px; opacity: var(--wearOpacity, .15);
+}
