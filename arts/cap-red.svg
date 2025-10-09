@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="28" fill="#b91c1c"/>
+  <circle cx="32" cy="32" r="20" fill="#fecaca"/>
+  <text x="32" y="38" font-size="16" text-anchor="middle" fill="#7f1d1d" font-family="Arial">CAP</text>
+</svg>

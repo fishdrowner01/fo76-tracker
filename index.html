@@ -1,62 +1,420 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>FO76 Tracker</title>
-  <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="stylesheet" href="./style.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#031207" />
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="./manifest.webmanifest" />
+<title>FO76 Tracker</title>
+<link rel="stylesheet" href="./style-194.css" />
+<!-- React (UMD) -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- Tesseract -->
+<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>FO76 Tracker</h1>
-      <p class="subtitle">Unofficial fan companion for Fallout 76</p>
-    </header>
+<div id="root"></div>
 
-    <section id="currency">
-      <div class="mini-card">
-        <span>Gold</span>
-        <input type="checkbox" id="gold-daily" /><label for="gold-daily">Daily</label>
-        <input type="checkbox" id="gold-weekly" /><label for="gold-weekly">Weekly</label>
-      </div>
-
-      <div class="mini-card">
-        <span>Caps</span>
-        <input type="checkbox" id="caps-daily" /><label for="caps-daily">Daily</label>
-      </div>
-    </section>
-
-    <nav>
-      <button id="tab-all" class="tab active">All</button>
-      <button id="tab-daily" class="tab">Daily</button>
-      <button id="tab-weekly" class="tab">Weekly</button>
-    </nav>
-
-    <main id="lists">
-      <ul id="list-all" class="list visible"></ul>
-      <ul id="list-daily" class="list"></ul>
-      <ul id="list-weekly" class="list"></ul>
-    </main>
-
-    <div id="info">
-      <h2>Info & Settings</h2>
-      <p><strong>Theme:</strong> choose color • <strong>Wear:</strong> CRT scanline level</p>
-      <p><strong>Pip-Boy Mode:</strong> toggles monochrome green interface</p>
-      <p><strong>OCR:</strong> reads challenge text from a screenshot (Aggressive Mode runs multiple passes)</p>
-      <p><strong>Reset Time:</strong> tied to Fallout 76’s global 12 PM UTC reset</p>
-      <p><button id="install">Install on your phone</button></p>
-      <p><button id="refresh">⟳ Refresh / Check Updates</button></p>
-      <p class="version">v1.9.4 • Unofficial fan project – Bethesda Softworks © rights reserved</p>
+<!-- OCR overlay -->
+<div class="overlay" id="ocrOverlay">
+  <div class="box">
+    <h3>Importing…</h3>
+    <p id="ocrStatus">Initializing…</p>
+    <div class="row">
+      <button class="btn" id="ocrCancel">Cancel</button>
     </div>
   </div>
+</div>
 
-  <script>
-    // simple PWA registration
-    if ("serviceWorker" in navigator)
-      window.addEventListener("load", () =>
-        navigator.serviceWorker.register("./sw-206.js")
-      );
-  </script>
+<!-- Review overlay -->
+<div class="overlay" id="reviewOverlay">
+  <div class="box">
+    <h3>Review &amp; Import</h3>
+    <div id="reviewBody" class="review-body"></div>
+    <div class="row wrap">
+      <button class="btn" id="reviewSelectAll">Select all</button>
+      <button class="btn" id="reviewSelectNone">Select none</button>
+      <button class="btn" id="reviewCopy">Copy text</button>
+      <span class="flex1"></span>
+      <button class="btn" id="reviewImportDaily">Import to Daily</button>
+      <button class="btn" id="reviewImportWeekly">Import to Weekly</button>
+      <button class="btn" id="reviewClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Theme & Info (concise) -->
+<div class="overlay" id="infoOverlay">
+  <div class="box">
+    <h3>FO76 Tracker — Info</h3>
+    <ul>
+      <li><b>Reset time:</b> Fallout global reset at <b>12:00 UTC</b> (7 AM ET / 4 AM PT).</li>
+      <li><b>Import image:</b> upload a screenshot → review → import to Daily/Weekly.</li>
+      <li><b>OCR:</b> Optical Character Recognition (Aggressive Mode tries extra passes).</li>
+      <li><b>Install:</b> <button class="btn" id="installBtn">Install</button> (iOS: Share → Add to Home Screen).</li>
+      <li><b>Version:</b> <span id="verInInfo"></span> • <button class="btn" id="refreshInInfo">⟳ Refresh</button></li>
+    </ul>
+    <p class="muted">Unofficial fan project. Not affiliated with or endorsed by Bethesda Softworks.</p>
+    <div class="right"><button class="btn" id="infoClose">Close</button></div>
+  </div>
+</div>
+
+<script>
+/** v1.9.4 — FO reset (12:00 UTC) + robust OCR + Weekly import **/
+
+// ---------- Utilities ----------
+function $(id){ return document.getElementById(id); }
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+function load(k, def){ try{ const v=JSON.parse(localStorage.getItem(k)); return v??def }catch{ return def } }
+function newid(){ return Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2); }
+
+// Next daily reset at 12:00 UTC
+function nextDailyUTC(){
+  const now = new Date();
+  const nUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12,0,0,0);
+  const reset = new Date(nUTC);
+  if (now >= reset) reset.setUTCDate(reset.getUTCDate()+1);
+  return reset;
+}
+// Next weekly reset at 12:00 UTC on TUESDAY (getUTCDay() === 2)
+function nextWeeklyUTC(){
+  const now = new Date();
+  const base = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12,0,0,0));
+  let add = (2 - base.getUTCDay() + 7) % 7; // Tue = 2
+  if (add===0 && now >= base) add = 7;
+  base.setUTCDate(base.getUTCDate() + add);
+  return base;
+}
+function msFmt(t){
+  const ms = t - new Date(); if(ms<=0) return "Resetting…";
+  const s = Math.floor(ms/1000);
+  const d = Math.floor(s/86400);
+  const h = Math.floor((s%86400)/3600);
+  const m = Math.floor((s%3600)/60);
+  const sec = s%60;
+  const parts=[]; if(d) parts.push(d+'d'); if(h||d) parts.push(h+'h'); if(m||h||d) parts.push(m+'m'); parts.push(sec+'s');
+  return parts.join(' ');
+}
+
+// ---------- OCR helpers ----------
+const overlay = (() => {
+  let canceled=false, term=null;
+  const el = $('ocrOverlay'); const status=$('ocrStatus');
+  function show(msg, t){ canceled=false; status.textContent=msg||'Working…'; term=t||null; el.classList.add('show'); }
+  function hide(){ el.classList.remove('show'); }
+  function setTerminator(t){ term=t; }
+  function cancel(){ canceled=true; try{ term && term(); }catch{} hide(); }
+  $('ocrCancel').onclick = cancel;
+  return { show, hide, setTerminator, cancel, get canceled(){return canceled;}, msg:(m)=>{ if(!canceled) status.textContent=m; } };
+})();
+
+const review = (() => {
+  const el = $('reviewOverlay'); const body=$('reviewBody');
+  $('reviewSelectAll').onclick = ()=> body.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=true);
+  $('reviewSelectNone').onclick = ()=> body.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);
+  $('reviewCopy').onclick = async ()=> {
+    const text=Array.from(body.querySelectorAll('label div')).map(d=>d.textContent).join('\n');
+    try{ await navigator.clipboard.writeText(text) }catch{}
+  };
+  $('reviewClose').onclick = ()=> el.classList.remove('show');
+  function show(lines, autoIdx){
+    body.innerHTML='';
+    lines.forEach((line,i)=>{
+      const row=document.createElement('label');
+      row.className='review-row';
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.className='chk sm';
+      cb.checked = autoIdx.includes(i);
+      const txt=document.createElement('div'); txt.textContent=line; txt.className='flex1';
+      row.appendChild(cb); row.appendChild(txt); body.appendChild(row);
+    });
+    el.classList.add('show');
+  }
+  function selectedLines(lines){
+    const picks=[];
+    body.querySelectorAll('.review-row').forEach((row,i)=>{
+      const cb=row.querySelector('input[type=checkbox]');
+      if(cb && cb.checked) picks.push(lines[i]);
+    });
+    return picks;
+  }
+  return { show, hide:()=>el.classList.remove('show'), selectedLines };
+})();
+
+function parseLines(raw){
+  return raw.split(/\r?\n/).map(s=>s.replace(/[•·►→]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+}
+function guessChallenges(lines){
+  const rx=/(complete|craft|kill|collect|build|scrap|discover|photo|event|workshop|legendary|ops|rank|score|nuke|daily|weekly)/i;
+  return lines.map((s,i)=> rx.test(s)||/\b\d{1,3}\b/.test(s) ? i : -1).filter(i=>i>=0);
+}
+function looksDone(s){
+  const t=s.trim().toLowerCase();
+  return /^(✔|✓|✅|!|★)\s*/.test(t) || /\s*(✔|✓|✅|!|★)$/.test(t) || /\b(completed?|claimed?|done|finished)\b/.test(t);
+}
+function toItems(lines){
+  return lines.map(txt=>({
+    id: newid(),
+    text: txt.replace(/^\s*(✔|✓|✅|!|\||i|★)\s*/i,'').replace(/\s*(✔|✓|✅|!|\||i|★)\s*$/i,'').trim(),
+    done: looksDone(txt)
+  }));
+}
+const OCR_MIRRORS = {
+  worker:['https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js','https://unpkg.com/tesseract.js@5/dist/worker.min.js'],
+  core:['https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.2/tesseract-core.wasm.js','https://unpkg.com/tesseract.js-core@5.0.2/tesseract-core.wasm.js'],
+  lang:['https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz','https://github.com/naptha/tessdata/blob/gh-pages/4.0.0/eng.traineddata.gz?raw=true']
+};
+async function ensureOCR(){
+  const out={ workerPath:'./ocr/worker.min.js', corePath:'./ocr/tesseract-core.wasm.js', langPath:'./ocr' };
+  const ok = await Promise.all([
+    fetch(out.workerPath).then(r=>r.ok).catch(()=>false),
+    fetch(out.corePath).then(r=>r.ok).catch(()=>false),
+    fetch(out.langPath+'/eng.traineddata.gz').then(r=>r.ok).catch(()=>false),
+  ]);
+  if(ok.every(Boolean)) return out;
+  overlay.msg('Downloading OCR files…');
+  async function pull(urls, localKey){
+    for(const u of urls){
+      try{ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) continue; const b=await r.blob(); return URL.createObjectURL(b); }catch{}
+    }
+    throw new Error('Failed '+localKey);
+  }
+  out.workerPath = await pull(OCR_MIRRORS.worker,'worker');
+  out.corePath   = await pull(OCR_MIRRORS.core,'core');
+  out.langPath   = (await pull(OCR_MIRRORS.lang,'lang')).replace(/eng\.traineddata\.gz$/,'');
+  return out;
+}
+function prepCanvas(img, rotate){
+  const MAX=1600;
+  let w=img.width, h=img.height;
+  if(rotate%180!==0){ [w,h]=[h,w]; }
+  let s=1, mx=Math.max(w,h); if(mx>MAX) s=MAX/mx;
+  const cv=document.createElement('canvas'); cv.width=Math.round(w*s); cv.height=Math.round(h*s);
+  const cx=cv.getContext('2d');
+  cx.save();
+  if(rotate){
+    cx.translate(cv.width/2, cv.height/2);
+    cx.rotate(rotate*Math.PI/180);
+    cx.drawImage(img, -img.height*s/2, -img.width*s/2, img.height*s, img.width*s);
+  }else{
+    cx.drawImage(img,0,0,cv.width,cv.height);
+  }
+  cx.restore();
+  const id=cx.getImageData(0,0,cv.width,cv.height); const d=id.data;
+  for(let i=0;i<d.length;i+=4){
+    const y=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114);
+    const c=Math.min(255, Math.max(0,(y-128)*1.25+128));
+    d[i]=d[i+1]=d[i+2]=c;
+  }
+  cx.putImageData(id,0,0);
+  return cv;
+}
+async function recognize(file, o, aggressive){
+  overlay.msg('Loading image…');
+  const url=URL.createObjectURL(file); const img=new Image();
+  await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=url; });
+  URL.revokeObjectURL(url);
+  const rotations = aggressive ? [0,90,180,270] : [0,90];
+  const psms = aggressive ? [6,4,3] : [6,3];
+  const worker = await Tesseract.createWorker({
+    workerPath:o.workerPath, corePath:o.corePath, langPath:o.langPath,
+    logger: m=>{ if(m.status) overlay.msg(m.status+' '+Math.round((m.progress||0)*100)+'%'); }
+  });
+  overlay.setTerminator(async ()=>{ try{ await worker.terminate(); }catch{} });
+  await worker.load(); await worker.loadLanguage('eng'); await worker.initialize('eng');
+  let best={text:'', score:0};
+  for(const r of rotations){
+    const cv=prepCanvas(img, r);
+    for(const p of psms){
+      overlay.msg(`Reading… (rot ${r}°, psm ${p})`);
+      await worker.setParameters({ tessedit_pageseg_mode: p });
+      let timedOut=false; const timer=setTimeout(()=>{ timedOut=true; }, 25000);
+      try{
+        const res = await worker.recognize(cv);
+        if(!timedOut){
+          const txt=(res&&res.data&&res.data.text)||'';
+          const lines=parseLines(txt);
+          const score=lines.length;
+          if(score>best.score) best={text:txt, score};
+          if(score>=6){ clearTimeout(timer); await worker.terminate(); overlay.setTerminator(null); return best.text; }
+        }
+      }catch{}
+      clearTimeout(timer);
+    }
+  }
+  try{ await worker.terminate(); }catch{}
+  overlay.setTerminator(null);
+  return best.text;
+}
+
+// ---------- App ----------
+const KEY='fo76-tracker-v1';
+const VERSION='1.9.4';
+
+function Header(){
+  return React.createElement('header',{className:'header'},
+    React.createElement('div',{className:'left'},
+      React.createElement('button',{className:'btn', onClick:()=>$('infoOverlay').classList.add('show')},'Info')
+    ),
+    React.createElement('div',{className:'right'},
+      React.createElement('div',{className:'mini'},
+        React.createElement('img',{src:'./arts/gold-bars.svg',alt:'',className:'art'}),
+        React.createElement('div',null,
+          React.createElement('div',{className:'title'},'Gold'),
+          React.createElement('label',null, React.createElement('input',{type:'checkbox',className:'chk sm', id:'gold-d'}),' Daily'),
+          React.createElement('label',{style:{marginLeft:6}}, React.createElement('input',{type:'checkbox',className:'chk sm', id:'gold-w'}),' Weekly')
+        )
+      ),
+      React.createElement('div',{className:'mini'},
+        React.createElement('img',{src:'./arts/cap-red.svg',alt:'',className:'art'}),
+        React.createElement('div',null,
+          React.createElement('div',{className:'title'},'Caps'),
+          React.createElement('label',null, React.createElement('input',{type:'checkbox',className:'chk sm', id:'caps-d'}),' Daily')
+        )
+      )
+    )
+  );
+}
+
+function FocusBar(props){
+  const tabs=['All','Daily','Weekly'];
+  return React.createElement('div',{className:'focusbar'},
+    tabs.map(t=>React.createElement('button',{
+      key:t, className:'tab '+(props.focus===t?'active':''), onClick:()=>props.setFocus(t)
+    },t))
+  );
+}
+
+function ListPanel({kind, compact}){
+  const state = load(KEY, {});
+  const key = kind.toLowerCase();
+  const defDaily = [{id:newid(), text:'Complete a Daily Challenge', done:false}];
+  const defWeekly= [{id:newid(), text:'Complete 5 Daily Challenges', done:false}];
+
+  const [items, setItems] = React.useState(state[key] || (key==='daily'?defDaily:defWeekly));
+  const [txt, setTxt]     = React.useState('');
+  const [hide, setHide]   = React.useState(!!state[key+'HideDone']);
+
+  React.useEffect(()=>{
+    const s=load(KEY,{}); s[key]=items; s[key+'HideDone']=hide; save(KEY,s);
+  },[items,hide]);
+
+  React.useEffect(()=>{
+    const tick = setInterval(()=>{
+      const n=new Date();
+      const due = key==='daily' ? nextDailyUTC() : nextWeeklyUTC();
+      if(n>due) setItems(l=>l.map(x=>({...x,done:false})));
+    }, 15000);
+    return ()=>clearInterval(tick);
+  },[]);
+
+  function add(){
+    if(!txt.trim()) return;
+    setItems(l=>l.concat([{id:newid(),text:txt.trim(),done:false}]));
+    setTxt('');
+  }
+  function toggle(id){ setItems(l=>l.map(x=>x.id===id?({...x,done:!x.done}):x)); }
+  function del(id){ setItems(l=>l.filter(x=>x.id!==id)); }
+
+  async function importImage(ev){
+    const f=ev.target.files && ev.target.files[0]; if(!f) return;
+    const aggressive = !!load('fo76-agg', false);
+    overlay.show('Preparing OCR…');
+    try{
+      const o = await ensureOCR();
+      const text = await recognize(f, o, aggressive);
+      overlay.hide();
+      const lines=parseLines(text);
+      const autoIdx=guessChallenges(lines);
+      review.show(lines, autoIdx);
+
+      $('reviewImportDaily').onclick = ()=>{
+        const sel = review.selectedLines(lines);
+        const s=load(KEY,{}); s.daily = (s.daily||[]).concat(toItems(sel)); save(KEY,s);
+        alert('Imported to Daily'); review.hide();
+      };
+      $('reviewImportWeekly').onclick = ()=>{
+        const sel = review.selectedLines(lines);
+        const s=load(KEY,{}); s.weekly = (s.weekly||[]).concat(toItems(sel)); save(KEY,s);
+        alert('Imported to Weekly'); review.hide();
+      };
+    }catch(e){
+      overlay.hide(); alert('OCR failed. Try again.');
+    }
+    ev.target.value="";
+  }
+
+  const due = key==='daily' ? nextDailyUTC() : nextWeeklyUTC();
+  const now = new Date();
+  const showWarn = key==='daily' ? (due-now <= 4*3600*1000) : (due-now <= 24*3600*1000);
+  const shown = hide ? items.filter(x=>!x.done) : items;
+
+  return React.createElement('div',{className:'card'},
+    React.createElement('div',{className:'head'},
+      React.createElement('div',{className:'title'}, kind+' Challenges'),
+      React.createElement('div',{className:'right'},
+        !compact && React.createElement('label',{className:'btn filebtn'},
+          React.createElement('input',{type:'file',accept:'image/*',onChange:importImage,style:{display:'none'}}),
+          'Import image'
+        ),
+        React.createElement('label',{className:'switch'}, React.createElement('input',{type:'checkbox',className:'chk sm',checked:hide,onChange:e=>setHide(e.target.checked)}),' Hide completed'),
+        showWarn && React.createElement('span',{className:'badge'}, (key==='daily'?'Daily ':'Weekly ')+msFmt(due))
+      )
+    ),
+    React.createElement('div',{className:'body'},
+      !compact && React.createElement('div',{className:'controls'},
+        React.createElement('input',{className:'input',placeholder:`Add ${key} challenge…`,value:txt,onChange:e=>setTxt(e.target.value)}),
+        React.createElement('button',{className:'btn',onClick:add},'Add'),
+        React.createElement('button',{className:'icon',onClick:()=>setItems(l=>l.filter(x=>!x.done))},'🗑️')
+      ),
+      React.createElement('div',{className:'list'},
+        shown.map(it=>React.createElement('div',{key:it.id,className:'item '+(it.done?'done':''),onClick:()=>toggle(it.id)},
+          React.createElement('input',{type:'checkbox',className:'chk',checked:it.done,onChange:()=>toggle(it.id)}),
+          React.createElement('div',{className:'label'},it.text),
+          !compact && React.createElement('button',{className:'icon',onClick:(e)=>{e.stopPropagation();del(it.id)}},'🗑️')
+        )),
+        shown.length===0 && React.createElement('div',{className:'muted'},'All clear.')
+      )
+    )
+  );
+}
+
+function App(){
+  const st = load(KEY,{});
+  const [focus,setFocus] = React.useState(st.focus || 'All');
+  React.useEffect(()=>{ const s=load(KEY,{}); s.focus=focus; save(KEY,s); },[focus]);
+
+  $('infoClose').onclick = ()=>$('infoOverlay').classList.remove('show');
+  $('refreshInInfo').onclick = async ()=>{
+    const reg = await navigator.serviceWorker.getRegistration(); if(reg){ await reg.update(); }
+    location.href=location.pathname+'?r='+Date.now();
+  };
+  $('verInInfo').textContent = 'v'+VERSION;
+
+  let deferredPrompt=null;
+  window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt=e; });
+  $('installBtn').onclick = ()=>{ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; } else { alert('Use your browser menu → Install App'); } };
+
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') overlay.cancel(); });
+
+  return React.createElement('div',{className:'container'},
+    React.createElement(Header,null),
+    React.createElement(FocusBar,{focus,setFocus}),
+    React.createElement('div',{className: focus==='All' ? 'twocol' : ''},
+      React.createElement(ListPanel,{kind:'Daily', compact: focus==='All' && true, key:'daily'}),
+      React.createElement(ListPanel,{kind:'Weekly', compact: focus==='All' && true, key:'weekly'})
+    )
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(React.StrictMode,null,React.createElement(App)));
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw-208.js'));
+}
+</script>
 </body>
 </html>
