@@ -15,12 +15,14 @@
     </header>
 
     <section id="currency">
-      <div class="mini-card"> <span>Gold</span>
+      <div class="mini-card">
+        <span>Gold</span>
         <input type="checkbox" id="gold-daily" /><label for="gold-daily">Daily</label>
         <input type="checkbox" id="gold-weekly" /><label for="gold-weekly">Weekly</label>
       </div>
 
-      <div class="mini-card"> <span>Caps</span>
+      <div class="mini-card">
+        <span>Caps</span>
         <input type="checkbox" id="caps-daily" /><label for="caps-daily">Daily</label>
       </div>
     </section>
@@ -50,6 +52,7 @@
   </div>
 
   <script>
+    // simple PWA registration
     if ("serviceWorker" in navigator)
       window.addEventListener("load", () =>
         navigator.serviceWorker.register("./sw-206.js")

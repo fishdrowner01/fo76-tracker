@@ -109,6 +109,3 @@ button {
 button:hover {
   background: #2e6a3a;
 }
-
-/* Iconless layout tweak */
-.mini-card span{font-weight:600}

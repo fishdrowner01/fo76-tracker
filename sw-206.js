@@ -1,7 +1,7 @@
 self.addEventListener("install", e => {
   e.waitUntil(
     caches.open("fo76-206").then(c =>
-      c.addAll(["./", "./index.html", "./style.css", ])
+      c.addAll(["./", "./index.html", "./style.css", "./manifest.webmanifest"])
     )
   );
   self.skipWaiting();
