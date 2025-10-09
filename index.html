@@ -1,144 +1,59 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FO76 Tracker v1.9.4</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>FO76 Tracker</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <header class="app-header">
-    <div class="title-wrap">
-      <h1>Fallout 76 Tracker</h1>
-      <span class="badge">v1.9.4</span>
+  <div class="container">
+    <header>
+      <h1>FO76 Tracker</h1>
+      <p class="subtitle">Unofficial fan companion for Fallout 76</p>
+    </header>
+
+    <section id="currency">
+      <div class="mini-card"> <span>Gold</span>
+        <input type="checkbox" id="gold-daily" /><label for="gold-daily">Daily</label>
+        <input type="checkbox" id="gold-weekly" /><label for="gold-weekly">Weekly</label>
+      </div>
+
+      <div class="mini-card"> <span>Caps</span>
+        <input type="checkbox" id="caps-daily" /><label for="caps-daily">Daily</label>
+      </div>
+    </section>
+
+    <nav>
+      <button id="tab-all" class="tab active">All</button>
+      <button id="tab-daily" class="tab">Daily</button>
+      <button id="tab-weekly" class="tab">Weekly</button>
+    </nav>
+
+    <main id="lists">
+      <ul id="list-all" class="list visible"></ul>
+      <ul id="list-daily" class="list"></ul>
+      <ul id="list-weekly" class="list"></ul>
+    </main>
+
+    <div id="info">
+      <h2>Info & Settings</h2>
+      <p><strong>Theme:</strong> choose color • <strong>Wear:</strong> CRT scanline level</p>
+      <p><strong>Pip-Boy Mode:</strong> toggles monochrome green interface</p>
+      <p><strong>OCR:</strong> reads challenge text from a screenshot (Aggressive Mode runs multiple passes)</p>
+      <p><strong>Reset Time:</strong> tied to Fallout 76’s global 12 PM UTC reset</p>
+      <p><button id="install">Install on your phone</button></p>
+      <p><button id="refresh">⟳ Refresh / Check Updates</button></p>
+      <p class="version">v1.9.4 • Unofficial fan project – Bethesda Softworks © rights reserved</p>
     </div>
-    <div class="header-actions">
-      <button id="btnExport" class="btn">Export</button>
-      <label class="btn file-label">
-        Import <input type="file" id="fileImport" accept=".json" hidden />
-      </label>
-      <button id="btnResetDaily" class="btn warn">Reset Daily</button>
-      <button id="btnResetWeekly" class="btn warn">Reset Weekly</button>
-      <button id="btnExpandAll" class="btn">Expand All</button>
-      <button id="btnCollapseAll" class="btn">Collapse All</button>
-      <button id="btnSettings" class="btn">Settings</button>
-    </div>
-  </header>
+  </div>
 
-  <main class="container">
-    <!-- Countdown / Reset Info -->
-    <section class="card">
-      <div class="card-head">
-        <h2>Resets</h2>
-        <button class="icon-btn" data-toggle="#resetBody" aria-expanded="true">▾</button>
-      </div>
-      <div id="resetBody" class="card-body">
-        <p><strong>Daily reset:</strong> <span id="dailyResetText"></span></p>
-        <p><strong>Weekly reset:</strong> <span id="weeklyResetText"></span></p>
-        <div class="grid two">
-          <div>
-            <div class="countdown">
-              <div class="label">Time to next Daily</div>
-              <div id="dailyCountdown" class="time">--:--:--</div>
-            </div>
-          </div>
-          <div>
-            <div class="countdown">
-              <div class="label">Time to next Weekly</div>
-              <div id="weeklyCountdown" class="time">--:--:--</div>
-            </div>
-          </div>
-        </div>
-        <p class="hint">You can change reset times in Settings.</p>
-      </div>
-    </section>
-
-    <!-- Gold Bullion Widget -->
-    <section class="card gold">
-      <div class="card-head">
-        <h2>Gold</h2>
-        <button class="icon-btn" data-toggle="#goldBody" aria-expanded="true">▾</button>
-      </div>
-      <div id="goldBody" class="card-body">
-        <div class="grid two">
-          <label class="check">
-            <input type="checkbox" id="goldDailyDone" />
-            <span>Daily cap reached</span>
-          </label>
-          <label class="check">
-            <input type="checkbox" id="smileyWeeklyDone" />
-            <span>Smiley weekly done</span>
-          </label>
-        </div>
-        <details class="details">
-          <summary>Descriptions</summary>
-          <ul class="bullets">
-            <li><strong>Daily cap reached</strong>: mark when you’ve hit the daily bullion limit.</li>
-            <li><strong>Smiley weekly</strong>: mark when you purchased the full weekly gold from Smiley at Crater.</li>
-          </ul>
-        </details>
-      </div>
-    </section>
-
-    <!-- Dailies -->
-    <section class="card">
-      <div class="card-head">
-        <h2>Dailies</h2>
-        <button class="icon-btn" data-toggle="#dailyBody" aria-expanded="true">▾</button>
-      </div>
-      <div id="dailyBody" class="card-body">
-        <div id="dailyList" class="list"></div>
-        <div class="toolbar">
-          <input id="dailyNew" type="text" placeholder="Add a daily…" />
-          <button id="addDaily" class="btn">Add</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Weeklies -->
-    <section class="card">
-      <div class="card-head">
-        <h2>Weeklies</h2>
-        <button class="icon-btn" data-toggle="#weeklyBody" aria-expanded="true">▾</button>
-      </div>
-      <div id="weeklyBody" class="card-body">
-        <div id="weeklyList" class="list"></div>
-        <div class="toolbar">
-          <input id="weeklyNew" type="text" placeholder="Add a weekly…" />
-          <button id="addWeekly" class="btn">Add</button>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Settings Modal -->
-  <dialog id="settingsDlg" class="dialog">
-    <form method="dialog" class="dialog-inner">
-      <h3>Settings</h3>
-      <label class="form-row">
-        <span>Daily reset (24h, local):</span>
-        <input id="dailyHour" type="number" min="0" max="23" />
-      </label>
-      <label class="form-row">
-        <span>Weekly reset day (0=Sun..6=Sat):</span>
-        <input id="weeklyDay" type="number" min="0" max="6" />
-      </label>
-      <label class="form-row">
-        <span>Weekly reset hour (24h, local):</span>
-        <input id="weeklyHour" type="number" min="0" max="23" />
-      </label>
-
-      <div class="dialog-actions">
-        <button value="cancel" class="btn">Cancel</button>
-        <button id="saveSettings" value="default" class="btn primary">Save</button>
-      </div>
-    </form>
-  </dialog>
-
-  <footer class="app-footer">
-    <span>Local save with <code>localStorage</code>. Export regularly for backups.</span>
-  </footer>
-
-  <script src="script.js"></script>
+  <script>
+    if ("serviceWorker" in navigator)
+      window.addEventListener("load", () =>
+        navigator.serviceWorker.register("./sw-206.js")
+      );
+  </script>
 </body>
 </html>
