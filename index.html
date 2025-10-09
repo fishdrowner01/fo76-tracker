@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#031207" />
+<meta name="theme-color" content="#0d1a12" />
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="./manifest.webmanifest" />
@@ -33,8 +33,9 @@
 <div class="overlay" id="reviewOverlay">
   <div class="box">
     <h3>Review &amp; Import</h3>
+    <div id="reviewSummary" class="muted" style="margin:6px 0 8px"></div>
     <div id="reviewBody" class="review-body"></div>
-    <div class="row wrap">
+    <div class="row wrap" style="margin-top:10px">
       <button class="btn" id="reviewSelectAll">Select all</button>
       <button class="btn" id="reviewSelectNone">Select none</button>
       <button class="btn" id="reviewCopy">Copy text</button>
@@ -46,30 +47,39 @@
   </div>
 </div>
 
-<!-- Info / Settings overlay (scrollable) -->
+<!-- Info / Settings overlay (scrollable, cleaner) -->
 <div class="overlay" id="infoOverlay">
   <div class="box scroll">
     <h3>FO76 Tracker — Info</h3>
-    <ul>
-      <li><b>Reset time:</b> Fallout global reset at <b>12:00 UTC</b> (7 AM ET / 4 AM PT).</li>
-      <li><b>Import image:</b> upload a screenshot → review → import to Daily/Weekly.</li>
-      <li><b>OCR:</b> Optical Character Recognition. <label class="btn"><input type="checkbox" id="ocrAgg" class="chk sm"> Aggressive OCR</label></li>
-      <li><b>Install:</b> <button class="btn" id="installBtn">Install</button> • <b>Updates:</b> <button class="btn" id="refreshInInfo">⟳ Refresh</button></li>
-      <li><b>Version:</b> <span id="verInInfo"></span></li>
+
+    <h4 class="section">Overview</h4>
+    <ul class="info-list">
+      <li><b>Reset:</b> Global reset at <b>12:00 UTC</b> (7 AM ET / 4 AM PT)</li>
+      <li><b>OCR:</b> Reads challenge text from a screenshot. 
+        <label class="btn" style="margin-left:8px;">
+          <input type="checkbox" id="ocrAgg" class="chk sm"> Aggressive OCR
+        </label>
+      </li>
     </ul>
-    <hr>
-    <h4>Tools</h4>
-    <div class="row wrap">
+
+    <h4 class="section">Actions</h4>
+    <div class="info-actions">
+      <button class="btn" id="installBtn">Install</button>
+      <button class="btn" id="refreshInInfo">⟳ Refresh</button>
       <button class="btn" id="resetDaily">Reset Dailies</button>
       <button class="btn" id="resetWeekly">Reset Weeklies</button>
       <button class="btn" id="exportData">Export</button>
       <button class="btn" id="importData">Import</button>
+      <span class="flex1"></span>
+      <span class="muted">Version: <span id="verInInfo"></span></span>
     </div>
-    <p class="muted" style="margin-top:10px">
-      FO76 Tracker is an unofficial fan project for <b>Fallout 76</b>.
-      It is not affiliated with, endorsed by, or supported by Bethesda Softworks or ZeniMax Media.
+
+    <h4 class="section">About</h4>
+    <p class="muted" style="margin-top:6px">
+      FO76 Tracker is an unofficial fan project for <b>Fallout 76</b>. It is not affiliated with, endorsed by, or supported by Bethesda Softworks or ZeniMax Media.
       &copy; Bethesda Softworks LLC. All Rights Reserved. Fallout and related marks are trademarks of ZeniMax Media Inc.
     </p>
+
     <div class="right"><button class="btn" id="infoClose">Close</button></div>
   </div>
 </div>
@@ -78,21 +88,21 @@
 <div class="overlay" id="themeOverlay">
   <div class="box">
     <h3>Theme</h3>
-    <p class="muted">Pick a color and a style preset. Changes save automatically.</p>
+    <p class="muted">Pick a color preset or tweak the accent. Changes save automatically.</p>
     <div class="wheel">
-      <button class="swatch" data-acc="#b9ff7a" title="Green"></button>
-      <button class="swatch" data-acc="#ffd46a" title="Amber"></button>
-      <button class="swatch" data-acc="#9fe9ff" title="Ice Blue"></button>
-      <button class="swatch" data-acc="#eaf6ff" title="White"></button>
-      <button class="swatch" data-acc="#ffa2c8" title="Pink"></button>
-      <button class="swatch" data-acc="#c8a6ff" title="Violet"></button>
+      <button class="swatch" data-preset="green"  title="Green"></button>
+      <button class="swatch" data-preset="amber"  title="Amber"></button>
+      <button class="swatch" data-preset="ice"    title="Ice Blue"></button>
+      <button class="swatch" data-preset="white"  title="White"></button>
+      <button class="swatch" data-preset="pink"   title="Pink"></button>
+      <button class="swatch" data-preset="violet" title="Violet"></button>
     </div>
     <div class="wheel wheel-style">
       <label class="chip"><input type="radio" name="stylePreset" value="clean" checked> Clean</label>
       <label class="chip"><input type="radio" name="stylePreset" value="pipboy"> Pip-Boy Distortion</label>
     </div>
     <div class="row wrap" style="margin-top:8px">
-      <label class="btn"> Custom <input type="color" id="themeColor" value="#b9ff7a" style="margin-left:8px"></label>
+      <label class="btn"> Accent <input type="color" id="themeColor" value="#b9ff7a" style="margin-left:8px"></label>
       <label class="btn"> Wear <input type="range" id="wearLevel" min="0" max="100" value="20" style="margin-left:8px"></label>
       <button class="btn" id="themeClose">Close</button>
     </div>
@@ -100,7 +110,7 @@
 </div>
 
 <script>
-/** v1.9.4 — warm palette, improved tabs, click-to-check, robust OCR **/
+/** v1.9.5 — warm palette, improved tabs, click-to-check, robust OCR + self-check **/
 
 // ---------- Utilities ----------
 function $(id){ return document.getElementById(id); }
@@ -136,7 +146,7 @@ function msFmt(t){
   return parts.join(' ');
 }
 
-// ---------- OCR helpers (hardened) ----------
+// ---------- OCR helpers (hardened + self-check) ----------
 const overlay = (() => {
   let canceled=false, term=null;
   const el = $('ocrOverlay'); const status=$('ocrStatus');
@@ -149,7 +159,7 @@ const overlay = (() => {
 })();
 
 const review = (() => {
-  const el = $('reviewOverlay'); const body=$('reviewBody');
+  const el = $('reviewOverlay'); const body=$('reviewBody'); const sum=$('reviewSummary');
   $('reviewSelectAll').onclick = ()=> body.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=true);
   $('reviewSelectNone').onclick = ()=> body.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);
   $('reviewCopy').onclick = async ()=> {
@@ -167,6 +177,7 @@ const review = (() => {
       const txt=document.createElement('div'); txt.textContent=line; txt.className='flex1';
       row.appendChild(cb); row.appendChild(txt); body.appendChild(row);
     });
+    sum.textContent = `Detected ${lines.length} line(s). Auto-selected ${autoIdx.length}. Review below, then import.`;
     el.classList.add('show');
   }
   function selectedLines(lines){
@@ -204,7 +215,7 @@ const OCR_MIRRORS = {
   lang:['https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz','https://github.com/naptha/tessdata/blob/gh-pages/4.0.0/eng.traineddata.gz?raw=true']
 };
 async function ensureOCR(){
-  const out={ workerPath:'./ocr/worker.min.js', corePath:'./ocr/tesseract-core.wasm.js', langPath:'./ocr' };
+  const out={}; out.workerPath='./ocr/worker.min.js'; out.corePath='./ocr/tesseract-core.wasm.js'; out.langPath='./ocr';
   const isFile = location.protocol === 'file:';
   const ok = isFile ? [false,false,false] : await Promise.all([
     fetch(out.workerPath).then(r=>r.ok).catch(()=>false),
@@ -249,36 +260,42 @@ function prepCanvas(img, rotate){
   cx.putImageData(id,0,0);
   return cv;
 }
-async function recognize(file, o, aggressive){
+async function recognize(file, o, aggressive){  // returns lines; guarantees resolve
   overlay.msg('Loading image…');
-  const url=URL.createObjectURL(file); const img=new Image();
-  await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=url; });
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  const loadP = new Promise((res, rej)=>{
+    const t = setTimeout(()=>rej(new Error('Image load timeout')), 8000);
+    img.onload = ()=>{ clearTimeout(t); res(); };
+    img.onerror = (e)=>{ clearTimeout(t); rej(e); };
+  });
+  img.src = url;
+  await loadP.catch(()=>{});
   URL.revokeObjectURL(url);
+  if(!img.width || overlay.canceled) return [];
 
   const rotations = aggressive ? [0,90,180,270] : [0,90];
   const psms = aggressive ? [6,4,3] : [6,3];
 
-  const watchdogGlobal = setTimeout(()=>overlay.msg('Taking longer than usual… still working'), 8000);
   const deadline = Date.now() + 45000;
-
   const worker = await Tesseract.createWorker({
     workerPath:o.workerPath, corePath:o.corePath, langPath:o.langPath,
     logger: m=>{ if(m.status) overlay.msg(m.status+' '+Math.round((m.progress||0)*100)+'%'); }
   });
   overlay.setTerminator(async ()=>{ try{ await worker.terminate(); }catch{} });
 
+  let best={text:'', score:0};
   try{
     await worker.load(); await worker.loadLanguage('eng'); await worker.initialize('eng');
-
-    let best={text:'', score:0};
     for(const r of rotations){
-      if(Date.now()>deadline) break;
+      if (overlay.canceled || Date.now()>deadline) break;
       const cv=prepCanvas(img, r);
       for(const p of psms){
-        if(Date.now()>deadline) break;
+        if (overlay.canceled || Date.now()>deadline) break;
         overlay.msg(`Reading… (rot ${r}°, psm ${p})`);
         await worker.setParameters({ tessedit_pageseg_mode: p });
-        let timedOut=false; const passTimer=setTimeout(()=>{ timedOut=true; }, 25000);
+        let timedOut=false; const passTimer=setTimeout(()=>{ timedOut=true; }, 20000);
         try{
           const res = await worker.recognize(cv);
           if(!timedOut){
@@ -286,18 +303,18 @@ async function recognize(file, o, aggressive){
             const lines=parseLines(txt);
             const score=lines.length;
             if(score>best.score) best={text:txt, score};
-            if(score>=6){ clearTimeout(passTimer); clearTimeout(watchdogGlobal); return best.text; }
+            if(score>=6){ clearTimeout(passTimer); break; }
           }
         }catch{}
         clearTimeout(passTimer);
       }
     }
-    clearTimeout(watchdogGlobal);
-    return best.text;
-  } finally{
+  } finally {
     try{ await worker.terminate(); }catch{}
     overlay.setTerminator(null);
+    overlay.hide();
   }
+  return parseLines(best.text||'');
 }
 
 // ---------- Theme system (warmer presets) ----------
@@ -330,7 +347,7 @@ applyTheme(currentPalette(), themeState.wear, themeState.style);
 
 // ---------- App ----------
 const KEY='fo76-tracker-v1';
-const VERSION='1.9.4';
+const VERSION='1.9.5';
 
 function Header(){
   return React.createElement('header',{className:'header'},
@@ -403,26 +420,27 @@ function ListPanel({kind, compact, showImport}){
     overlay.show('Preparing OCR…');
     try{
       const o = await ensureOCR();
-      const text = await recognize(f, o, aggressive);
-      overlay.hide();
-      const lines=parseLines(text);
+      const lines = await recognize(f, o, aggressive); // always returns array
+      if(!lines || !lines.length){ alert('No text recognized. Try a clearer screenshot or toggle Aggressive OCR.'); return; }
       const autoIdx=guessChallenges(lines);
       review.show(lines, autoIdx);
 
       $('reviewImportDaily').onclick = ()=>{
         const sel = review.selectedLines(lines);
         const s=load(KEY,{}); s.daily = (s.daily||[]).concat(toItems(sel)); save(KEY,s);
-        alert('Imported to Daily'); review.hide();
+        alert(`Imported ${sel.length} item(s) to Daily`); review.hide();
       };
       $('reviewImportWeekly').onclick = ()=>{
         const sel = review.selectedLines(lines);
         const s=load(KEY,{}); s.weekly = (s.weekly||[]).concat(toItems(sel)); save(KEY,s);
-        alert('Imported to Weekly'); review.hide();
+        alert(`Imported ${sel.length} item(s) to Weekly`); review.hide();
       };
     }catch(e){
-      overlay.hide(); alert('OCR failed. Try again.');
+      alert('OCR failed. Try again.');
+    } finally {
+      overlay.hide();
+      ev.target.value="";
     }
-    ev.target.value="";
   }
 
   const due = key==='daily' ? nextDailyUTC() : nextWeeklyUTC();
@@ -450,10 +468,7 @@ function ListPanel({kind, compact, showImport}){
       ),
       React.createElement('div',{className:'list'},
         shown.map(it=>React.createElement('div',{key:it.id,className:'item '+(it.done?'done':''),onClick:()=>toggle(it.id)},
-          React.createElement('input',{
-            type:'checkbox', className:'chk', checked:it.done,
-            onClick:(e)=>e.stopPropagation(), readOnly:true
-          }),
+          React.createElement('input',{ type:'checkbox', className:'chk', checked:it.done, onClick:(e)=>e.stopPropagation(), readOnly:true }),
           React.createElement('div',{className:'label'},it.text),
           !compact && React.createElement('button',{className:'icon',onClick:(e)=>{e.stopPropagation();del(it.id)}},'🗑️')
         )),
@@ -470,11 +485,14 @@ function App(){
 
   // Info
   $('infoClose').onclick = ()=>$('infoOverlay').classList.remove('show');
-  $('refreshInInfo').onclick = async ()=>{
-    const reg = await navigator.serviceWorker.getRegistration(); if(reg){ await reg.update(); }
-    location.href=location.pathname+'?r='+Date.now();
-  };
+  $('refreshInInfo').onclick = async ()=>{ const reg = await navigator.serviceWorker.getRegistration(); if(reg){ await reg.update(); } location.href=location.pathname+'?r='+Date.now(); };
   $('verInInfo').textContent = 'v'+VERSION;
+
+  // iOS/Android install prompt
+  let deferredPrompt=null;
+  window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt=e; });
+  $('installBtn').onclick = ()=>{ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; } else { alert('Use your browser menu → Install App'); } };
+
   // OCR aggressive toggle
   const AGG_KEY='fo76-agg';
   $('ocrAgg').checked = !!load(AGG_KEY, false);
@@ -485,39 +503,23 @@ function App(){
   $('themeColor').value = (currentPalette().acc);
   $('wearLevel').value = themeState.wear;
   document.querySelectorAll('.swatch').forEach(btn=>{
-    btn.style.setProperty('--dot', btn.dataset.acc);
+    const preset = btn.dataset.preset;
+    const p = PRESETS[preset] || PRESETS.green;
+    btn.style.setProperty('--dot', p.acc);
     btn.onclick = ()=>{
-      themeState.color = {...currentPalette(), acc: btn.dataset.acc};
-      applyTheme(themeState.color, themeState.wear, themeState.style);
-      $('themeColor').value = btn.dataset.acc;
+      themeState.preset = preset;
+      themeState.color = null;
+      applyTheme(PRESETS[preset], themeState.wear, themeState.style);
+      $('themeColor').value = PRESETS[preset].acc;
       saveTheme();
     };
   });
-  $('themeColor').oninput = (e)=>{
-    themeState.color = {...currentPalette(), acc: e.target.value};
-    applyTheme(themeState.color, themeState.wear, themeState.style);
-    saveTheme();
-  };
-  $('wearLevel').oninput = (e)=>{
-    themeState.wear = +e.target.value;
-    applyTheme(currentPalette(), themeState.wear, themeState.style);
-    saveTheme();
-  };
-  document.querySelectorAll('input[name="stylePreset"]').forEach(r=>{
-    if(r.value === themeState.style) r.checked = true;
-    r.onchange = ()=>{
-      if(r.checked){
-        themeState.style = r.value;
-        applyTheme(currentPalette(), themeState.wear, themeState.style);
-        saveTheme();
-      }
-    };
-  });
+  $('themeColor').oninput = (e)=>{ const base = PRESETS[themeState.preset] || PRESETS.green; themeState.color = { ...base, acc: e.target.value }; applyTheme(themeState.color, themeState.wear, themeState.style); saveTheme(); };
+  $('wearLevel').oninput = (e)=>{ themeState.wear = +e.target.value; applyTheme(currentPalette(), themeState.wear, themeState.style); saveTheme(); };
+  document.querySelectorAll('input[name="stylePreset"]').forEach(r=>{ if(r.value === themeState.style) r.checked = true; r.onchange = ()=>{ if(r.checked){ themeState.style = r.value; applyTheme(currentPalette(), themeState.wear, themeState.style); saveTheme(); } }; });
 
   // Cancel overlays via Esc
-  document.addEventListener('keydown', e=>{
-    if(e.key==='Escape'){ overlay.cancel(); $('themeOverlay').classList.remove('show'); $('infoOverlay').classList.remove('show'); }
-  });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ overlay.cancel(); $('themeOverlay').classList.remove('show'); $('infoOverlay').classList.remove('show'); } });
 
   // Panels per tab
   return React.createElement('div',{className:'container'},
@@ -542,7 +544,7 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(React.StrictMode,null,React.createElement(App)));
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw-209.js'));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw-210.js'));
 }
 </script>
 </body>
